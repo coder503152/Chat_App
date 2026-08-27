@@ -12,6 +12,8 @@ import {
   HelpCircle,
   FileText,
   AlertCircle,
+  Target,
+  MessageSquare,
 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -33,6 +35,10 @@ const AISummaryModal = () => {
     if (!summary) return;
 
     let textToCopy = `📋 Chat Summary with ${selectedUser?.fullName || "Contact"}\n\n`;
+
+    if (summary.intent) {
+      textToCopy += `🎯 What they are trying to say:\n${summary.intent}\n\n`;
+    }
 
     if (summary.overview) {
       textToCopy += `📌 Overview:\n${summary.overview}\n\n`;
@@ -77,11 +83,11 @@ const AISummaryModal = () => {
             </div>
             <div>
               <h3 className="font-semibold text-lg flex items-center gap-2">
-                AI Chat Summary
-                <span className="badge badge-primary badge-sm">Beta</span>
+                AI Chat & Intent Summary
+                <span className="badge badge-primary badge-sm">Pro</span>
               </h3>
               <p className="text-xs text-base-content/70">
-                Conversation with {selectedUser?.fullName || "User"}
+                Messages from {selectedUser?.fullName || "User"}
               </p>
             </div>
           </div>
@@ -99,9 +105,9 @@ const AISummaryModal = () => {
             <div className="py-16 flex flex-col items-center justify-center gap-4 text-center">
               <span className="loading loading-spinner loading-lg text-primary"></span>
               <div className="space-y-1">
-                <p className="font-medium text-base">Analyzing conversation...</p>
+                <p className="font-medium text-base">Analyzing messages & core intent...</p>
                 <p className="text-xs text-base-content/60 max-w-xs">
-                  AI is extracting key points, decisions, and action items from this chat.
+                  AI is deciphering what {selectedUser?.fullName?.split(" ")[0]} is trying to say and extracting main takeaways.
                 </p>
               </div>
             </div>
@@ -125,6 +131,19 @@ const AISummaryModal = () => {
 
           {!isSummarizing && !summaryError && summary && (
             <div className="space-y-4">
+              {/* CORE INTENT (What they are trying to say) */}
+              {summary.intent && (
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/5 border border-primary/30 shadow-xs space-y-1.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-primary">
+                    <span className="flex items-center gap-1.5 uppercase tracking-wide">
+                      <Target className="size-4 text-primary" /> What {selectedUser?.fullName?.split(" ")[0] || "They"} Are Trying To Say
+                    </span>
+                    <span className="badge badge-primary badge-xs">Core Goal</span>
+                  </div>
+                  <p className="text-sm font-medium leading-relaxed text-base-content">{summary.intent}</p>
+                </div>
+              )}
+
               {/* Overview */}
               {summary.overview && (
                 <div className="p-4 rounded-xl bg-base-200/60 border border-base-300">
@@ -135,6 +154,19 @@ const AISummaryModal = () => {
                   <p className="text-sm leading-relaxed text-base-content/90">{summary.overview}</p>
                 </div>
               )}
+
+              {/* Suggested Reply */}
+              {summary.suggestedReply && (
+                <div className="p-3.5 rounded-xl bg-base-200/50 border border-base-300 flex items-center justify-between gap-3">
+                  <div className="space-y-0.5 min-w-0">
+                    <span className="text-[11px] font-semibold uppercase text-secondary flex items-center gap-1">
+                      <MessageSquare className="size-3" /> Recommended Reply
+                    </span>
+                    <p className="text-xs italic text-base-content/80 truncate">"{summary.suggestedReply}"</p>
+                  </div>
+                </div>
+              )}
+
 
               {/* Main Discussion Points */}
               {summary.mainPoints?.length > 0 && (

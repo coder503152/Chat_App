@@ -71,18 +71,20 @@ const MessageInput = () => {
     }
   };
 
+  const canSend = text.trim() || imagePreview;
+
   return (
-    <div className="p-4 w-full">
+    <div className="p-3 sm:p-4 w-full bg-base-100/40 border-t border-base-300/60 backdrop-blur-sm">
       {/* Reply Suggestions Box */}
       {isGeneratingSuggestions && (
-        <div className="mb-2 flex items-center gap-2 text-xs text-base-content/70 px-2 py-1.5 bg-base-200/60 rounded-lg border border-base-300 animate-pulse">
+        <div className="mb-2.5 flex items-center gap-2 text-xs text-base-content/70 px-3 py-2 bg-base-200/70 rounded-xl border border-base-300 animate-pulse">
           <span className="loading loading-spinner loading-xs text-primary"></span>
-          <span className="font-medium">Generating AI reply suggestions...</span>
+          <span className="font-medium">AI is crafting smart reply options...</span>
         </div>
       )}
 
       {!isGeneratingSuggestions && replySuggestions.length > 0 && (
-        <div className="mb-3 bg-base-200/80 backdrop-blur-sm border border-base-300 rounded-xl p-2.5 shadow-sm space-y-1.5 animate-fadeIn">
+        <div className="mb-3 bg-base-200/90 backdrop-blur-md border border-base-300 rounded-2xl p-3 shadow-md space-y-2 animate-fadeIn">
           <div className="flex items-center justify-between px-1">
             <span className="text-xs font-semibold text-primary flex items-center gap-1.5">
               <Sparkles className="size-3.5" /> AI Reply Suggestions
@@ -102,7 +104,7 @@ const MessageInput = () => {
                 key={idx}
                 type="button"
                 onClick={() => handleSelectSuggestion(suggestion)}
-                className="btn btn-xs sm:btn-sm btn-ghost hover:btn-primary justify-start text-left font-normal text-xs normal-case border border-base-300/80 bg-base-100 hover:bg-primary/10 rounded-lg p-2 h-auto line-clamp-2 transition-all"
+                className="btn btn-xs sm:btn-sm btn-ghost hover:btn-primary justify-start text-left font-normal text-xs normal-case border border-base-300 bg-base-100 hover:bg-primary/10 rounded-xl p-2.5 h-auto line-clamp-2 transition-all shadow-2xs"
                 title="Click to insert into message"
               >
                 "{suggestion}"
@@ -114,34 +116,34 @@ const MessageInput = () => {
 
       {imagePreview && (
         <div className="mb-3 flex items-center gap-2">
-          <div className="relative">
+          <div className="relative group">
             <img
               src={imagePreview}
               alt="Preview"
-              className="w-20 h-20 object-cover rounded-lg border border-zinc-700"
+              className="w-20 h-20 object-cover rounded-xl border border-base-300 shadow-sm"
             />
             <button
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-base-300
-              flex items-center justify-center"
+              className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-base-300 border border-base-content/20 flex items-center justify-center text-base-content/80 hover:text-error hover:bg-base-200 transition-colors shadow-sm"
               type="button"
             >
-              <X className="size-3" />
+              <X className="size-3.5" />
             </button>
           </div>
         </div>
       )}
 
       <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="flex-1 flex gap-2">
+        <div className="flex-1 flex items-center gap-1 bg-base-200/60 border border-base-300 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 rounded-2xl px-3 py-1 transition-all">
           <input
             ref={textInputRef}
             type="text"
-            className="w-full input input-bordered rounded-lg input-sm sm:input-md"
+            className="w-full bg-transparent border-none outline-none text-sm py-2 text-base-content placeholder:text-base-content/40 focus:ring-0"
             placeholder="Type a message..."
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
+
           <input
             type="file"
             accept="image/*"
@@ -154,33 +156,48 @@ const MessageInput = () => {
           <button
             type="button"
             disabled={isGeneratingSuggestions}
-            className={`btn btn-circle btn-sm sm:btn-md ${
-              isGeneratingSuggestions ? "text-primary animate-spin" : "text-zinc-400 hover:text-primary"
+            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm transition-colors ${
+              isGeneratingSuggestions
+                ? "text-primary animate-spin"
+                : "text-base-content/50 hover:text-primary hover:bg-primary/10"
             }`}
             onClick={handleSuggestReply}
             title="Suggest AI Reply"
           >
-            <Wand2 size={18} />
+            <Wand2 size={16} />
           </button>
 
+          {/* Image attach button */}
           <button
             type="button"
-            className={`hidden sm:flex btn btn-circle
-                     ${imagePreview ? "text-emerald-500" : "text-zinc-400"}`}
+            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm transition-colors ${
+              imagePreview
+                ? "text-emerald-500 bg-emerald-500/10"
+                : "text-base-content/50 hover:text-base-content"
+            }`}
             onClick={() => fileInputRef.current?.click()}
+            title="Attach image"
           >
-            <Image size={20} />
+            <Image size={17} />
           </button>
         </div>
+
+        {/* Send Button */}
         <button
           type="submit"
-          className="btn btn-sm btn-circle"
-          disabled={!text.trim() && !imagePreview}
+          className={`btn btn-circle btn-sm sm:btn-md transition-all ${
+            canSend
+              ? "btn-primary shadow-md scale-105"
+              : "btn-ghost text-base-content/30 btn-disabled"
+          }`}
+          disabled={!canSend}
+          title="Send message"
         >
-          <Send size={22} />
+          <Send size={18} />
         </button>
       </form>
     </div>
   );
 };
 export default MessageInput;
+

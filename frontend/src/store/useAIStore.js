@@ -24,7 +24,7 @@ export const useAIStore = create((set, get) => ({
   openSummaryModal: () => set({ isSummaryModalOpen: true }),
   closeSummaryModal: () => set({ isSummaryModalOpen: false }),
 
-  summarizeConversation: async (userId) => {
+  summarizeConversation: async (userId, recentCount = null) => {
     if (!userId) {
       toast.error("Please select a conversation first");
       return;
@@ -32,7 +32,10 @@ export const useAIStore = create((set, get) => ({
 
     set({ isSummarizing: true, summaryError: null, isSummaryModalOpen: true });
     try {
-      const res = await axiosInstance.post("/ai/summarize", { userId });
+      const payload = { userId };
+      if (recentCount) payload.recentCount = recentCount;
+
+      const res = await axiosInstance.post("/ai/summarize", payload);
       if (res.data?.summary) {
         set({ summary: res.data.summary, summaryError: null });
       }
@@ -44,6 +47,11 @@ export const useAIStore = create((set, get) => ({
       set({ isSummarizing: false });
     }
   },
+
+  summarizeRecentMessages: async (userId, count = 10) => {
+    return get().summarizeConversation(userId, count);
+  },
+
 
   // Ask AI Actions
   openAskModal: () => set({ isAskModalOpen: true }),

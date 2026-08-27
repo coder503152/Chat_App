@@ -130,6 +130,8 @@ export const summarizeChat = async (req, res) => {
   }
 };
 
+
+
 /**
  * POST /api/ai/ask
  * Body: { userId: string, question: string }

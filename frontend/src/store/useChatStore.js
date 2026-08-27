@@ -9,6 +9,14 @@ export const useChatStore = create((set, get) => ({
   selectedUser: null,
   isUsersLoading: false,
   isMessagesLoading: false,
+  newIncomingCount: 0,
+  unreadCounts: {},
+
+  resetNewIncomingCount: () => set({ newIncomingCount: 0 }),
+  clearUnreadCount: (userId) =>
+    set((state) => ({
+      unreadCounts: { ...state.unreadCounts, [userId]: 0 },
+    })),
 
   getUsers: async () => {
     set({ isUsersLoading: true });
@@ -23,7 +31,11 @@ export const useChatStore = create((set, get) => ({
   },
 
   getMessages: async (userId) => {
-    set({ isMessagesLoading: true });
+    set((state) => ({
+      isMessagesLoading: true,
+      newIncomingCount: 0,
+      unreadCounts: { ...state.unreadCounts, [userId]: 0 },
+    }));
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
@@ -76,19 +88,33 @@ export const useChatStore = create((set, get) => ({
   },
 
   subscribeToMessages: () => {
-    const { selectedUser } = get();
-    if (!selectedUser) return;
-
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
 
-    socket.on("newMessage", (newMessage) => {
-      const isMessageSentFromSelectedUser = newMessage.senderId === selectedUser._id;
-      if (!isMessageSentFromSelectedUser) return;
+    // Clean up any existing listeners first to prevent duplicate callbacks
+    socket.off("newMessage");
+    socket.off("messageUpdated");
+    socket.off("messageDeleted");
 
-      set({
-        messages: [...get().messages, newMessage],
-      });
+    socket.on("newMessage", (newMessage) => {
+      const { selectedUser } = get();
+      const isFromActiveUser = selectedUser && newMessage.senderId === selectedUser._id;
+
+      if (isFromActiveUser) {
+        set({
+          messages: [...get().messages, newMessage],
+          newIncomingCount: get().newIncomingCount + 1,
+        });
+      } else {
+        const senderId = newMessage.senderId;
+        const currentCount = get().unreadCounts[senderId] || 0;
+        set({
+          unreadCounts: {
+            ...get().unreadCounts,
+            [senderId]: currentCount + 1,
+          },
+        });
+      }
     });
 
     socket.on("messageUpdated", (updatedMessage) => {
@@ -106,6 +132,7 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
     if (!socket) return;
@@ -114,5 +141,12 @@ export const useChatStore = create((set, get) => ({
     socket.off("messageDeleted");
   },
 
-  setSelectedUser: (selectedUser) => set({ selectedUser }),
+  setSelectedUser: (selectedUser) =>
+    set((state) => ({
+      selectedUser,
+      newIncomingCount: 0,
+      unreadCounts: selectedUser ? { ...state.unreadCounts, [selectedUser._id]: 0 } : state.unreadCounts,
+    })),
 }));
+
+
