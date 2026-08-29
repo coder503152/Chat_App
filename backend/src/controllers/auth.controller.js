@@ -18,7 +18,7 @@ export const signup = async (req, res) => {
 
     if (user) return res.status(400).json({ message: "Email already exists" });
 
-    const salt = await bcrypt.genSalt(10);
+    const salt = await bcrypt.genSalt(10); // Generate random data to be added to a pass to make it very diff to be attacked from outside.
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const newUser = new User({
@@ -29,7 +29,7 @@ export const signup = async (req, res) => {
 
     if (newUser) {
       // generate jwt token here
-      generateToken(newUser._id, res);
+      generateToken(newUser._id, res); // Generate the token...
       await newUser.save();
 
       res.status(201).json({
@@ -47,6 +47,9 @@ export const signup = async (req, res) => {
   }
 };
 
+// Extract the email and password from the req.body , if they match a valid user , give access else throw error
+
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -56,7 +59,7 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
+    const isPasswordCorrect = await bcrypt.compare(password, user.password); // You dont decrypt the hash to compare with the pass , instead u compare the password to match with the hash..
     if (!isPasswordCorrect) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -88,13 +91,13 @@ export const logout = (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const { profilePic } = req.body;
-    const userId = req.user._id;
+    const userId = req.user._id; // An auth middleware runs before t
 
     if (!profilePic) {
       return res.status(400).json({ message: "Profile pic is required" });
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic);
+    const uploadResponse = await cloudinary.uploader.upload(profilePic); // Stores the profile pic in the cloudinary and return the secure link to the pic.
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadResponse.secure_url },

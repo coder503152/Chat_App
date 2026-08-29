@@ -4,12 +4,22 @@ import Message from "../models/message.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { getReceiverSocketId, io } from "../lib/socket.js";
 
+// Two types of things happen here :- 
+
+// And there are two communication mechanisms working together:
+
+// MongoDB/Mongoose → persistent storage
+// Socket.IO        → real-time delivery
+
+
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+    const loggedInUserId = req.user._id; // Current Logged in User
+    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password"); // we find all the users except for the current logged in user , except for their passwords cuz we dont need that....
+    // it filters the users except the currently logged in user ......
 
-    res.status(200).json(filteredUsers);
+
+    res.status(200).json(filteredUsers);  // returns the filtered users in the response .....
   } catch (error) {
     console.error("Error in getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Internal server error" });
@@ -18,15 +28,15 @@ export const getUsersForSidebar = async (req, res) => {
 
 export const getMessages = async (req, res) => {
   try {
-    const { id: userToChatId } = req.params;
-    const myId = req.user._id;
+    const { id: userToChatId } = req.params; // We grab from the request the id of the person for which we wanna bring the chats .... 
+    const myId = req.user._id; 
 
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    });
+    }); // Find the messages where the sender is me and reciver is the other person i am fetching fro or vice versa.
 
     res.status(200).json(messages);
   } catch (error) {
@@ -37,8 +47,8 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
-    const { id: receiverId } = req.params;
+    const { text, image } = req.body; // The content of the message I'm bout to send....
+    const { id: receiverId } = req.params; // The Id of the person i am sending the message to ...
     const senderId = req.user._id;
 
     let imageUrl;
