@@ -4,7 +4,7 @@ import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
 
 const ChatHeader = () => {
-  const { selectedUser, setSelectedUser } = useChatStore();
+  const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
   const { summarizeConversation, summarizeRecentMessages, openAskModal, isSummarizing } = useAIStore();
 
@@ -56,7 +56,11 @@ const ChatHeader = () => {
           <div>
             <h3 className="font-semibold text-sm sm:text-base leading-tight">{selectedUser?.fullName}</h3>
             <p className="text-xs text-base-content/60 flex items-center gap-1 font-medium mt-0.5">
-              {isOnline ? (
+              {typingUsers[selectedUser?._id] ? (
+                <span className="text-primary font-semibold animate-pulse">
+                  typing...
+                </span>
+              ) : isOnline ? (
                 <span className="text-emerald-500 flex items-center gap-1">
                   <span className="size-1.5 rounded-full bg-emerald-500"></span> Online
                 </span>

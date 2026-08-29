@@ -64,6 +64,12 @@ export const getMessages = async (req, res) => {
       { isRead: true }
     );
 
+    // Notify the sender in real-time that their messages have been read
+    const senderSocketId = getReceiverSocketId(userToChatId);
+    if (senderSocketId) {
+      io.to(senderSocketId).emit("messagesRead", { readBy: myId });
+    }
+
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },

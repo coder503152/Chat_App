@@ -13,6 +13,8 @@ export const useChatStore = create((set, get) => ({
   unreadCounts: {},
   lastMessageTimes: {},
   lastMessageTexts: {},
+  typingUsers: {},
+
 
 
   resetNewIncomingCount: () => set({ newIncomingCount: 0 }),
@@ -158,6 +160,9 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageUpdated");
     socket.off("messageDeleted");
+    socket.off("typing");
+    socket.off("stopTyping");
+    socket.off("messagesRead");
 
     socket.on("newMessage", (newMessage) => {
       const { selectedUser } = get();
@@ -170,8 +175,10 @@ export const useChatStore = create((set, get) => ({
 
       const textPreview = newMessage.text || (newMessage.image ? "📷 Photo" : (newMessage.video ? "🎥 Video" : ""));
 
-
       if (isFromActiveUser) {
+        newMessage.isRead = true;
+        socket.emit("markAsRead", { senderId });
+
         set({
           messages: [...get().messages, newMessage],
           newIncomingCount: get().newIncomingCount + 1,
@@ -203,8 +210,6 @@ export const useChatStore = create((set, get) => ({
       }
     });
 
-
-
     socket.on("messageUpdated", (updatedMessage) => {
       set({
         messages: get().messages.map((msg) =>
@@ -218,8 +223,27 @@ export const useChatStore = create((set, get) => ({
         messages: get().messages.filter((msg) => msg._id !== messageId),
       });
     });
-  },
 
+    socket.on("typing", ({ senderId }) => {
+      set((state) => ({
+        typingUsers: { ...state.typingUsers, [senderId]: true },
+      }));
+    });
+
+    socket.on("stopTyping", ({ senderId }) => {
+      set((state) => ({
+        typingUsers: { ...state.typingUsers, [senderId]: false },
+      }));
+    });
+
+    socket.on("messagesRead", ({ readBy }) => {
+      set((state) => ({
+        messages: state.messages.map((msg) =>
+          msg.receiverId === readBy ? { ...msg, isRead: true } : msg
+        ),
+      }));
+    });
+  },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;
@@ -227,14 +251,24 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageUpdated");
     socket.off("messageDeleted");
+    socket.off("typing");
+    socket.off("stopTyping");
+    socket.off("messagesRead");
   },
 
-  setSelectedUser: (selectedUser) =>
+  setSelectedUser: (selectedUser) => {
+    if (selectedUser) {
+      const socket = useAuthStore.getState().socket;
+      if (socket) {
+        socket.emit("markAsRead", { senderId: selectedUser._id });
+      }
+    }
     set((state) => ({
       selectedUser,
       newIncomingCount: 0,
       unreadCounts: selectedUser ? { ...state.unreadCounts, [selectedUser._id]: 0 } : state.unreadCounts,
-    })),
+    }));
+  },
 }));
 
 

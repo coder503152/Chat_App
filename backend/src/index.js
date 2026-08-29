@@ -17,15 +17,16 @@ dotenv.config();
 const PORT = process.env.PORT;
 const __dirname = path.resolve();
 
-app.use(express.json({ limit: "50mb" }));
+app.use(express.json({ limit: "50mb" })); // This tells ki agar kisi req me JSON hai , to use parse kro and it should be accessible in req.body
 
-app.use(cookieParser());
+app.use(cookieParser());  // similarly , hmlog req.cookies use krskte hain and can extract the jwt from there
+
 app.use(
   cors({
     origin: "http://localhost:5173",
     credentials: true,
   })
-);
+); // this is for handling CORS
 
 app.use("/api/auth", authRoutes); // authentication layer ...
 app.use("/api/messages", messageRoutes);
@@ -43,3 +44,20 @@ server.listen(PORT, () => {
   console.log("server is running on PORT:" + PORT);
   connectDB();
 });
+
+// yaha pe server.listen islie krte hain because is same HTTP server pr hamare dono express and socket.io connected hain :-
+
+//  HTTP Server
+//                   server.listen()
+//                        │
+//               ┌────────┴────────┐
+//               │                 │
+//            Express           Socket.IO
+//               │                 │
+//         REST API calls      Persistent
+//         request/response     connection
+//               │                 │
+//               ▼                 ▼
+//        Login / messages    Instant events
+//                               ↕
+//                          Client ↔ Server

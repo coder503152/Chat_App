@@ -10,7 +10,7 @@ import MessageSkeleton from "./skeletons/MessageSkeleton";
 import AISummaryModal from "./AISummaryModal";
 import AIAskModal from "./AIAskModal";
 import { useAuthStore } from "../store/useAuthStore";
-import { formatMessageTime } from "../lib/utils";
+import { formatMessageTime, formatMessageDateSeparator } from "../lib/utils";
 
 const ChatContainer = () => {
   const {
@@ -168,187 +168,220 @@ const ChatContainer = () => {
 
       <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
 
-        {(messages || []).map((message) => {
-
-          const isMyMessage = message.senderId === authUser?._id;
+        {(messages || []).map((message, index) => {
+          const isMyMessage = (message.senderId?._id ? String(message.senderId._id) : String(message.senderId)) === String(authUser?._id);
           const isEditing = editingMessageId === message._id;
-
           const isMediaOnly = (message.image || message.video) && !message.text;
 
-          return (
-            <div
-              key={message._id}
-              className={`chat ${isMyMessage ? "chat-end" : "chat-start"} group relative animate-fadeIn`}
-            >
-              <div className="chat-image avatar">
-                <div className="size-10 rounded-full border border-base-300 shadow-xs overflow-hidden">
-                  <img
-                    src={
-                      isMyMessage
-                        ? authUser?.profilePic || "/avatar.png"
-                        : selectedUser?.profilePic || "/avatar.png"
-                    }
-                    alt="profile pic"
-                    className="object-cover w-full h-full"
-                  />
-                </div>
-              </div>
+          // Consecutive checks (within 2 minutes)
+          const prevMsg = index > 0 ? messages[index - 1] : null;
+          const isPrevFromSameUser = prevMsg && (prevMsg.senderId?._id ? String(prevMsg.senderId._id) : String(prevMsg.senderId)) === (message.senderId?._id ? String(message.senderId._id) : String(message.senderId));
+          const isConsecutive = isPrevFromSameUser && (new Date(message.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 120000;
 
-              <div className="chat-header mb-1 flex items-center gap-1.5 opacity-75">
-                <time className="text-[11px] font-mono">
-                  {formatMessageTime(message.createdAt)}
-                </time>
-                {message.isSending && (
-                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 animate-pulse">
-                    <span className="loading loading-spinner loading-xs text-emerald-400"></span> Sending...
+          // Date Separator (day transition)
+          const showDateSeparator = !prevMsg || new Date(message.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
+
+          return (
+            <div key={message._id} className="flex flex-col">
+              {showDateSeparator && (
+                <div className="flex items-center justify-center my-4 select-none animate-fadeIn">
+                  <span className="bg-base-200/80 text-base-content/60 text-[11px] font-semibold px-3 py-1 rounded-full border border-base-300 shadow-3xs">
+                    {formatMessageDateSeparator(message.createdAt)}
                   </span>
-                )}
-                {message.isEdited && !message.isSending && (
-                  <span className="text-[10px] opacity-60 italic font-light">(edited)</span>
-                )}
-              </div>
+                </div>
+              )}
 
               <div
-                className={`chat-bubble flex flex-col relative shadow-sm rounded-2xl ${
-                  isMediaOnly ? "p-1" : "p-3 sm:p-3.5"
-                } ${
-                  isMyMessage
-                    ? "bg-primary text-primary-content rounded-tr-xs"
-                    : "bg-base-200 text-base-content border border-base-300 rounded-tl-xs"
-                }`}
+                className={`chat ${isMyMessage ? "chat-end" : "chat-start"} group relative ${
+                  isConsecutive ? "mt-0.5 sm:mt-1" : "mt-3 sm:mt-4"
+                } animate-fadeIn`}
               >
-                {message.image && (
-                  <div
-                    onClick={() => !message.isSending && setPreviewMedia({ type: "image", url: message.image })}
-                    className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/20 shadow-xs ${
-                      message.isSending ? "cursor-wait" : "cursor-pointer"
-                    }`}
-                    title={message.isSending ? "Uploading image..." : "Click to view full image"}
-                  >
-                    <img
-                      src={message.image}
-                      alt="Attachment"
-                      className={`sm:max-w-[260px] max-h-[240px] w-full object-cover transition-all ${
-                        message.isSending ? "opacity-40 blur-[1px]" : "group-hover:scale-105 duration-300"
-                      }`}
-                    />
-                    {message.isSending && (
-                      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-2">
-                        <div className="size-10 rounded-full bg-black/70 border border-emerald-500/50 flex items-center justify-center shadow-xl">
-                          <span className="loading loading-spinner loading-sm text-emerald-400"></span>
-                        </div>
-                        <span className="text-[10px] font-medium text-emerald-300 bg-black/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
-                          Sending...
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {message.video && (
-                  <div
-                    onClick={() => !message.isSending && setPreviewMedia({ type: "video", url: message.video })}
-                    className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/20 shadow-xs w-[220px] sm:w-[260px] h-[140px] sm:h-[160px] bg-black/60 flex items-center justify-center ${
-                      message.isSending ? "cursor-wait" : "cursor-pointer"
-                    }`}
-                    title={message.isSending ? "Uploading video..." : "Click to play video"}
-                  >
-                    <video
-                      src={message.video}
-                      className={`w-full h-full object-cover transition-opacity ${
-                        message.isSending ? "opacity-40 blur-[1px]" : "opacity-85 group-hover:opacity-100"
-                      }`}
-                      preload="metadata"
-                    />
-
-                    {message.isSending ? (
-                      <div className="absolute inset-0 bg-black/55 backdrop-blur-xs flex flex-col items-center justify-center gap-2 p-2">
-                        <div className="size-11 sm:size-12 rounded-full bg-black/70 border border-emerald-500/50 flex items-center justify-center shadow-xl">
-                          <span className="loading loading-spinner loading-md text-emerald-400"></span>
-                        </div>
-                        <span className="text-[11px] font-medium text-emerald-300 bg-black/70 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
-                          Uploading video...
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="absolute size-11 sm:size-12 rounded-full bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl ring-4 ring-emerald-500/30">
-                        <Play className="size-5 sm:size-6 fill-white translate-x-0.5" />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-
-
-
-                {isEditing ? (
-                  <div className="flex flex-col gap-2 min-w-[220px] pt-1">
-                    <input
-                      type="text"
-                      className="input input-bordered input-xs sm:input-sm w-full bg-base-100 text-base-content rounded-xl focus:outline-none"
-                      value={editText}
-                      onChange={(e) => setEditText(e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, message._id)}
-                      autoFocus
-                      disabled={isUpdating}
-                    />
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={handleCancelEdit}
-                        disabled={isUpdating}
-                        className="btn btn-ghost btn-xs text-xs gap-1 rounded-lg"
-                        title="Cancel (Esc)"
-                      >
-                        <X className="size-3" /> Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleSaveEdit(message._id)}
-                        disabled={!editText.trim() || isUpdating}
-                        className="btn btn-primary btn-xs text-xs gap-1 rounded-lg"
-                        title="Save (Enter)"
-                      >
-                        {isUpdating ? (
-                          <span className="loading loading-spinner loading-xs"></span>
-                        ) : (
-                          <Check className="size-3" />
-                        )}
-                        Save
-                      </button>
+                {/* Avatar */}
+                {isConsecutive ? (
+                  <div className="chat-image size-10 shrink-0 invisible lg:block" />
+                ) : (
+                  <div className="chat-image avatar">
+                    <div className="size-10 rounded-full border border-base-300 shadow-xs overflow-hidden">
+                      <img
+                        src={
+                          isMyMessage
+                            ? authUser?.profilePic || "/avatar.png"
+                            : selectedUser?.profilePic || "/avatar.png"
+                        }
+                        alt="profile pic"
+                        className="object-cover w-full h-full"
+                      />
                     </div>
                   </div>
-                ) : (
-                  message.text && (
-                    <p className="whitespace-pre-wrap break-words leading-relaxed text-sm">
-                      {message.text}
-                    </p>
-                  )
                 )}
 
-                {/* Hover action toolbar for user's own sent messages */}
-                {isMyMessage && !isEditing && (
-                  <div className="absolute -top-7 right-0 hidden group-hover:flex items-center gap-0.5 bg-base-300/90 backdrop-blur-md border border-base-content/10 px-1 py-0.5 rounded-lg shadow-md z-10 animate-fadeIn">
-                    {message.text && (
-                      <button
-                        type="button"
-                        onClick={() => handleStartEdit(message)}
-                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-primary transition-colors"
-                        title="Edit message"
-                      >
-                        <Pencil className="size-3" />
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleConfirmDelete(message._id)}
-                      className="btn btn-ghost btn-xs btn-circle p-1 hover:text-error transition-colors"
-                      title="Delete message"
-                    >
-                      <Trash2 className="size-3" />
-                    </button>
+                {/* Sender Header */}
+                {!isConsecutive && (
+                  <div className="chat-header mb-1 flex items-center gap-1.5 opacity-60">
+                    <span className="font-semibold text-[11px] text-base-content/80">
+                      {isMyMessage ? "You" : selectedUser?.fullName?.split(" ")[0]}
+                    </span>
                   </div>
                 )}
+
+                {/* Chat Bubble */}
+                <div
+                  className={`chat-bubble flex flex-col relative shadow-sm max-w-[85%] sm:max-w-[70%] ${
+                    isMediaOnly ? "p-1" : "p-3 pb-1.5 pr-4"
+                  } ${
+                    isMyMessage
+                      ? "bg-primary text-primary-content rounded-2xl rounded-tr-none"
+                      : "bg-base-200 text-base-content border border-base-300 rounded-2xl rounded-tl-none"
+                  }`}
+                >
+                  {/* Image message */}
+                  {message.image && (
+                    <div
+                      onClick={() => !message.isSending && setPreviewMedia({ type: "image", url: message.image })}
+                      className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/10 shadow-xs max-w-full ${
+                        message.isSending ? "cursor-wait" : "cursor-pointer"
+                      }`}
+                      title={message.isSending ? "Uploading image..." : "Click to view full image"}
+                    >
+                      <img
+                        src={message.image}
+                        alt="Attachment"
+                        className={`max-w-full sm:max-w-[280px] max-h-[220px] object-cover transition-all rounded-lg ${
+                          message.isSending ? "opacity-40 blur-[1px]" : "group-hover:scale-[1.02] duration-300"
+                        }`}
+                        onError={(e) => {
+                          e.target.src = "/avatar.png";
+                          e.target.title = "Failed to load image";
+                        }}
+                      />
+                      {message.isSending && (
+                        <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-2">
+                          <span className="loading loading-spinner loading-sm text-emerald-400"></span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Video message */}
+                  {message.video && (
+                    <div
+                      onClick={() => !message.isSending && setPreviewMedia({ type: "video", url: message.video })}
+                      className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/10 shadow-xs max-w-full w-[240px] sm:w-[280px] h-[150px] sm:h-[180px] bg-black/60 flex items-center justify-center ${
+                        message.isSending ? "cursor-wait" : "cursor-pointer"
+                      }`}
+                      title={message.isSending ? "Uploading video..." : "Click to play video"}
+                    >
+                      <video
+                        src={message.video}
+                        className={`w-full h-full object-cover transition-opacity rounded-lg ${
+                          message.isSending ? "opacity-40 blur-[1px]" : "opacity-85 group-hover:opacity-100"
+                        }`}
+                        preload="metadata"
+                      />
+
+                      {message.isSending ? (
+                        <div className="absolute inset-0 bg-black/55 backdrop-blur-xs flex flex-col items-center justify-center gap-2 p-2">
+                          <span className="loading loading-spinner loading-md text-emerald-400"></span>
+                        </div>
+                      ) : (
+                        <div className="absolute size-10 rounded-full bg-emerald-500 text-white flex items-center justify-center group-hover:scale-105 transition-transform shadow-lg ring-4 ring-emerald-500/25">
+                          <Play className="size-4 fill-white translate-x-0.5" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Text or Edit UI */}
+                  {isEditing ? (
+                    <div className="flex flex-col gap-2 min-w-[220px] pt-1">
+                      <input
+                        type="text"
+                        className="input input-bordered input-xs sm:input-sm w-full bg-base-100 text-base-content rounded-xl focus:outline-none"
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(e, message._id)}
+                        autoFocus
+                        disabled={isUpdating}
+                      />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          type="button"
+                          onClick={handleCancelEdit}
+                          disabled={isUpdating}
+                          className="btn btn-ghost btn-xs text-xs gap-1 rounded-lg"
+                          title="Cancel (Esc)"
+                        >
+                          <X className="size-3" /> Cancel
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleSaveEdit(message._id)}
+                          disabled={!editText.trim() || isUpdating}
+                          className="btn btn-primary btn-xs text-xs gap-1 rounded-lg"
+                          title="Save (Enter)"
+                        >
+                          {isUpdating ? (
+                            <span className="loading loading-spinner loading-xs"></span>
+                          ) : (
+                            <Check className="size-3" />
+                          )}
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      {message.text && (
+                        <p className="whitespace-pre-wrap break-words leading-relaxed text-sm">
+                          {message.text}
+                        </p>
+                      )}
+
+                      <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-mono select-none align-middle ${
+                        isMyMessage ? "text-primary-content/70" : "text-base-content/50"
+                      }`}>
+                        <span>{formatMessageTime(message.createdAt)}</span>
+                        {message.isEdited && <span className="opacity-80 font-sans">(edited)</span>}
+                        {isMyMessage && !message.isSending && (
+                          <span className="ml-0.5">
+                            {message.isRead ? (
+                              <span className="font-bold text-[10px] text-accent tracking-tighter" title="Seen">✓✓</span>
+                            ) : (
+                              <span className="text-[10px]" title="Delivered">✓</span>
+                            )}
+                          </span>
+                        )}
+                        {message.isSending && (
+                          <span className="loading loading-spinner loading-[8px]"></span>
+                        )}
+                      </div>
+                    </>
+                  )}
+
+                  {/* Hover action toolbar for user's own sent messages */}
+                  {isMyMessage && !isEditing && (
+                    <div className="absolute -top-7 right-0 hidden group-hover:flex items-center gap-0.5 bg-base-300/90 backdrop-blur-md border border-base-content/10 px-1 py-0.5 rounded-lg shadow-md z-10 animate-fadeIn">
+                      {message.text && (
+                        <button
+                          type="button"
+                          onClick={() => handleStartEdit(message)}
+                          className="btn btn-ghost btn-xs btn-circle p-1 hover:text-primary transition-colors"
+                          title="Edit message"
+                        >
+                          <Pencil className="size-3" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleConfirmDelete(message._id)}
+                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-error transition-colors"
+                        title="Delete message"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           );

@@ -3,9 +3,11 @@ import { useChatStore } from "../store/useChatStore";
 import { useAuthStore } from "../store/useAuthStore";
 import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users, Search, X } from "lucide-react";
+import { formatSidebarTime } from "../lib/utils";
+
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, unreadCounts, lastMessageTimes, lastMessageTexts } = useChatStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, unreadCounts, lastMessageTimes, lastMessageTexts, typingUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
 
 
@@ -131,35 +133,47 @@ const Sidebar = () => {
               </div>
 
               {/* User info */}
-              <div className="flex items-center justify-between min-w-0 flex-1">
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm truncate">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-sm truncate">
                     {user.fullName}
-                  </div>
-
-                  <div className="text-xs truncate max-w-[200px] sm:max-w-[140px]">
-                    {unreadCount > 0 ? (
-                      <span className="font-bold text-emerald-400 truncate block">
+                  </span>
+                  {lastMessageTimes[user._id] && (
+                    <span className="text-[10px] text-base-content/40 shrink-0 font-medium ml-2">
+                      {formatSidebarTime(lastMessageTimes[user._id])}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs truncate max-w-[140px] block">
+                    {typingUsers[user._id] ? (
+                      <span className="text-primary font-semibold flex items-center gap-1 animate-pulse">
+                        typing...
+                      </span>
+                    ) : unreadCount > 0 ? (
+                      <span className="font-bold text-accent truncate">
                         {lastMessageTexts[user._id] || "New message"}
                       </span>
                     ) : lastMessageTexts[user._id] ? (
-                      <span className="text-base-content/60 truncate block">
+                      <span className="text-base-content/50 truncate block">
                         {lastMessageTexts[user._id]}
                       </span>
                     ) : isOnline ? (
                       <span className="text-emerald-500 font-medium">Online</span>
                     ) : (
-                      <span className="text-base-content/50">Offline</span>
+                      <span className="text-base-content/40">Offline</span>
                     )}
-                  </div>
-                </div>
-
-                {unreadCount > 0 && (
-                  <span className="size-5.5 sm:size-6 rounded-full bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow-md flex items-center justify-center">
-                    {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
-                )}
+
+                  {unreadCount > 0 && (
+                    <span className="h-5 px-1.5 rounded-full bg-emerald-500 text-white font-extrabold text-[10px] shrink-0 shadow-md flex items-center justify-center">
+                      {unreadCount > 99 ? "99+" : unreadCount}
+                    </span>
+                  )}
+                </div>
               </div>
+
 
 
 

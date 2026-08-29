@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { Image, Send, X, Sparkles, Wand2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -8,6 +9,7 @@ const MessageInput = () => {
   const [text, setText] = useState("");
   const [imagePreview, setImagePreview] = useState(null);
   const [videoPreview, setVideoPreview] = useState(null);
+  const [isSending, setIsSending] = useState(false);
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
 
@@ -18,6 +20,59 @@ const MessageInput = () => {
     getReplySuggestions,
     clearSuggestions,
   } = useAIStore();
+
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
+
+  useEffect(() => {
+    // Reset typing status on selectedUser change or component unmount
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      const socket = useAuthStore.getState().socket;
+      if (socket && isTypingRef.current && selectedUser?._id) {
+        socket.emit("stopTyping", { receiverId: selectedUser._id });
+      }
+      isTypingRef.current = false;
+    };
+  }, [selectedUser?._id]);
+
+  const adjustHeight = () => {
+    const textarea = textInputRef.current;
+    if (textarea) {
+      textarea.style.height = "auto";
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+    }
+  };
+
+  const handleTextChange = (e) => {
+    const newText = e.target.value;
+    setText(newText);
+    adjustHeight();
+
+    const socket = useAuthStore.getState().socket;
+    if (!socket || !selectedUser?._id) return;
+
+    if (newText.trim() && !isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit("typing", { receiverId: selectedUser._id });
+    }
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        socket.emit("stopTyping", { receiverId: selectedUser._id });
+      }
+    }, 1500);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    }
+  };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
@@ -52,7 +107,6 @@ const MessageInput = () => {
         return;
       }
 
-
       const reader = new FileReader();
       reader.onloadend = () => {
         setVideoPreview(reader.result);
@@ -64,7 +118,6 @@ const MessageInput = () => {
     }
   };
 
-
   const removeMedia = () => {
     setImagePreview(null);
     setVideoPreview(null);
@@ -72,8 +125,17 @@ const MessageInput = () => {
   };
 
   const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!text.trim() && !imagePreview && !videoPreview) return;
+    e?.preventDefault();
+    if (isSending || (!text.trim() && !imagePreview && !videoPreview)) return;
+
+    setIsSending(true);
+
+    const socket = useAuthStore.getState().socket;
+    if (socket && isTypingRef.current && selectedUser?._id) {
+      isTypingRef.current = false;
+      socket.emit("stopTyping", { receiverId: selectedUser._id });
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     const messageData = {
       text: text.trim(),
@@ -81,20 +143,22 @@ const MessageInput = () => {
       video: videoPreview,
     };
 
-    // Clear form, media previews & AI suggestions instantly
+    // Reset composer inputs immediately
     setText("");
     setImagePreview(null);
     setVideoPreview(null);
     clearSuggestions();
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (textInputRef.current) textInputRef.current.style.height = "auto";
 
     try {
       await sendMessage(messageData);
     } catch (error) {
       console.error("Failed to send message:", error);
+    } finally {
+      setIsSending(false);
     }
   };
-
 
   const handleSuggestReply = () => {
     if (selectedUser?._id) {
@@ -107,10 +171,12 @@ const MessageInput = () => {
     clearSuggestions();
     if (textInputRef.current) {
       textInputRef.current.focus();
+      // Trigger size adjustment
+      setTimeout(adjustHeight, 10);
     }
   };
 
-  const canSend = text.trim() || imagePreview || videoPreview;
+  const canSend = (text.trim() || imagePreview || videoPreview) && !isSending;
 
   return (
     <div className="p-3 sm:p-4 w-full bg-base-100/40 border-t border-base-300/60 backdrop-blur-sm">
@@ -165,6 +231,7 @@ const MessageInput = () => {
               onClick={removeMedia}
               className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-base-300 border border-base-content/20 flex items-center justify-center text-base-content/80 hover:text-error hover:bg-base-200 transition-colors shadow-sm"
               type="button"
+              disabled={isSending}
             >
               <X className="size-3.5" />
             </button>
@@ -184,6 +251,7 @@ const MessageInput = () => {
               onClick={removeMedia}
               className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-base-300 border border-base-content/20 flex items-center justify-center text-base-content/80 hover:text-error hover:bg-base-200 transition-colors shadow-sm"
               type="button"
+              disabled={isSending}
             >
               <X className="size-3.5" />
             </button>
@@ -191,15 +259,17 @@ const MessageInput = () => {
         </div>
       )}
 
-      <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-        <div className="flex-1 flex items-center gap-1 bg-base-200/60 border border-base-300 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 rounded-2xl px-3 py-1 transition-all">
-          <input
+      <form onSubmit={handleSendMessage} className="flex items-end gap-2">
+        <div className="flex-1 flex items-end gap-1.5 bg-base-200/60 border border-base-300 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 rounded-2xl px-3 py-1.5 transition-all">
+          <textarea
             ref={textInputRef}
-            type="text"
-            className="w-full bg-transparent border-none outline-none text-sm py-2 text-base-content placeholder:text-base-content/40 focus:ring-0"
-            placeholder="Type a message..."
+            rows={1}
+            className="w-full bg-transparent border-none outline-none text-sm py-1.5 text-base-content placeholder:text-base-content/40 focus:ring-0 resize-none max-h-[120px] overflow-y-auto align-bottom leading-relaxed"
+            placeholder={isSending ? "Uploading attachment..." : "Type a message..."}
             value={text}
-            onChange={(e) => setText(e.target.value)}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
+            disabled={isSending}
           />
 
           <input
@@ -208,13 +278,14 @@ const MessageInput = () => {
             className="hidden"
             ref={fileInputRef}
             onChange={handleFileChange}
+            disabled={isSending}
           />
 
           {/* Suggest Reply Button */}
           <button
             type="button"
-            disabled={isGeneratingSuggestions}
-            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm transition-colors ${
+            disabled={isGeneratingSuggestions || isSending}
+            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm shrink-0 transition-colors ${
               isGeneratingSuggestions
                 ? "text-primary animate-spin"
                 : "text-base-content/50 hover:text-primary hover:bg-primary/10"
@@ -228,7 +299,8 @@ const MessageInput = () => {
           {/* Single Media attach button (Images & Videos) */}
           <button
             type="button"
-            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm transition-colors ${
+            disabled={isSending}
+            className={`btn btn-ghost btn-circle btn-xs sm:btn-sm shrink-0 transition-colors ${
               imagePreview || videoPreview
                 ? "text-emerald-500 bg-emerald-500/10"
                 : "text-base-content/50 hover:text-base-content"
@@ -243,7 +315,7 @@ const MessageInput = () => {
         {/* Send Button */}
         <button
           type="submit"
-          className={`btn btn-circle btn-sm sm:btn-md transition-all ${
+          className={`btn btn-circle btn-sm sm:btn-md shrink-0 transition-all ${
             canSend
               ? "btn-primary shadow-md scale-105"
               : "btn-ghost text-base-content/30 btn-disabled"
@@ -251,13 +323,14 @@ const MessageInput = () => {
           disabled={!canSend}
           title="Send message"
         >
-          <Send size={18} />
+          {isSending ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send size={18} />
+          )}
         </button>
       </form>
     </div>
   );
 };
 export default MessageInput;
-
-
-

@@ -30,49 +30,82 @@ const Navbar = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-              to={location.pathname === "/settings" ? "/" : "/settings"}
-              className={`btn btn-sm gap-2 transition-all ${
-                location.pathname === "/settings"
-                  ? "btn-primary shadow-sm"
-                  : "btn-ghost hover:bg-base-200"
-              }`}
-              title={location.pathname === "/settings" ? "Close settings" : "Open settings"}
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
-            </Link>
+            {!authUser && (
+              <Link
+                to="/settings"
+                className={`btn btn-sm gap-2 transition-all ${
+                  location.pathname === "/settings"
+                    ? "btn-primary shadow-sm"
+                    : "btn-ghost hover:bg-base-200"
+                }`}
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+                <span>Settings</span>
+              </Link>
+            )}
 
             {authUser && (
-              <>
-                <Link
-                  to={location.pathname === "/profile" ? "/" : "/profile"}
-                  className={`btn btn-sm gap-2 transition-all ${
-                    location.pathname === "/profile"
-                      ? "btn-primary shadow-sm"
-                      : "btn-ghost hover:bg-base-200"
-                  }`}
-                  title={location.pathname === "/profile" ? "Close profile" : "Open profile"}
+              <div className="dropdown dropdown-end">
+                <div
+                  tabIndex={0}
+                  role="button"
+                  className="btn btn-ghost btn-sm gap-2 rounded-xl border border-base-300/40 hover:bg-base-200 transition-all px-2.5 sm:px-3"
+                  title="Account menu"
                 >
-                  <div className="relative size-5 rounded-full overflow-hidden border border-base-content/20">
+                  <div className="relative size-6 rounded-full overflow-hidden border border-primary/30 shrink-0">
                     <img
                       src={authUser.profilePic || "/avatar.png"}
                       alt="Avatar"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className="hidden sm:inline font-medium">{authUser.fullName?.split(" ")[0]}</span>
-                </Link>
-
-                <button
-                  className="btn btn-sm btn-ghost hover:btn-error/10 hover:text-error gap-2 transition-colors"
-                  onClick={logout}
-                  title="Logout"
+                  <span className="font-semibold text-xs sm:text-sm text-base-content hidden sm:inline">
+                    {authUser.fullName?.split(" ")[0]}
+                  </span>
+                </div>
+                
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content menu p-1.5 mt-2 shadow-xl bg-base-100/95 backdrop-blur-md rounded-2xl w-48 border border-base-300 z-50 animate-scaleUp space-y-1"
                 >
-                  <LogOut className="size-4" />
-                  <span className="hidden sm:inline">Logout</span>
-                </button>
-              </>
+                  <li className="menu-title px-3 py-1.5 text-[10px] uppercase font-bold tracking-wider text-base-content/40">
+                    Account Actions
+                  </li>
+                  
+                  <li>
+                    <Link
+                      to="/profile"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs hover:bg-primary/10 hover:text-primary transition-all font-medium"
+                    >
+                      <User className="size-4 text-primary" />
+                      Profile
+                    </Link>
+                  </li>
+                  
+                  <li>
+                    <Link
+                      to="/settings"
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs hover:bg-secondary/10 hover:text-secondary transition-all font-medium"
+                    >
+                      <Settings className="size-4 text-secondary" />
+                      Settings
+                    </Link>
+                  </li>
+                  
+                  <div className="border-t border-base-300/60 my-1"></div>
+                  
+                  <li>
+                    <button
+                      onClick={logout}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-error hover:bg-error/10 hover:text-error transition-all font-medium w-full text-left"
+                    >
+                      <LogOut className="size-4" />
+                      Logout
+                    </button>
+                  </li>
+                </ul>
+              </div>
             )}
           </div>
         </div>
