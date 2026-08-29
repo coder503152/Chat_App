@@ -14,29 +14,62 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id; // Current Logged in User
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password"); // we find all the users except for the current logged in user , except for their passwords cuz we dont need that....
-    // it filters the users except the currently logged in user ......
+    const loggedInUserId = req.user._id;
+    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
 
+    const usersWithStats = await Promise.all(
+      filteredUsers.map(async (user) => {
+        const unreadCount = await Message.countDocuments({
+          senderId: user._id,
+          receiverId: loggedInUserId,
+          isRead: { $ne: true },
+        });
 
-    res.status(200).json(filteredUsers);  // returns the filtered users in the response .....
+        const lastMessage = await Message.findOne({
+          $or: [
+            { senderId: loggedInUserId, receiverId: user._id },
+            { senderId: user._id, receiverId: loggedInUserId },
+          ],
+        })
+          .sort({ createdAt: -1 })
+          .select("text image createdAt");
+
+        return {
+          ...user.toObject(),
+          unreadCount,
+          lastMessageTime: lastMessage ? lastMessage.createdAt : null,
+          lastMessageText: lastMessage
+            ? lastMessage.text || (lastMessage.image ? "📷 Attachment" : "")
+            : "",
+        };
+      })
+    );
+
+    res.status(200).json(usersWithStats);
   } catch (error) {
     console.error("Error in getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
+
 export const getMessages = async (req, res) => {
   try {
-    const { id: userToChatId } = req.params; // We grab from the request the id of the person for which we wanna bring the chats .... 
-    const myId = req.user._id; 
+    const { id: userToChatId } = req.params;
+    const myId = req.user._id;
+
+    // Mark all unread messages from this sender to logged-in user as read
+    await Message.updateMany(
+      { senderId: userToChatId, receiverId: myId, isRead: false },
+      { isRead: true }
+    );
 
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    }); // Find the messages where the sender is me and reciver is the other person i am fetching fro or vice versa.
+    });
 
     res.status(200).json(messages);
   } catch (error) {
@@ -44,6 +77,7 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
+
 
 export const sendMessage = async (req, res) => {
   try {

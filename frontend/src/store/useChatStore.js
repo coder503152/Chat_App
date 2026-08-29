@@ -11,6 +11,9 @@ export const useChatStore = create((set, get) => ({
   isMessagesLoading: false,
   newIncomingCount: 0,
   unreadCounts: {},
+  lastMessageTimes: {},
+  lastMessageTexts: {},
+
 
   resetNewIncomingCount: () => set({ newIncomingCount: 0 }),
   clearUnreadCount: (userId) =>
@@ -22,9 +25,17 @@ export const useChatStore = create((set, get) => ({
     set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/users");
-      set({ users: res.data });
+      const unreadCounts = {};
+      const lastMessageTimes = {};
+      const lastMessageTexts = {};
+      res.data.forEach((user) => {
+        if (user.unreadCount) unreadCounts[user._id] = user.unreadCount;
+        if (user.lastMessageTime) lastMessageTimes[user._id] = user.lastMessageTime;
+        if (user.lastMessageText) lastMessageTexts[user._id] = user.lastMessageText;
+      });
+      set({ users: res.data, unreadCounts, lastMessageTimes, lastMessageTexts });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to load contacts");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -40,18 +51,32 @@ export const useChatStore = create((set, get) => ({
       const res = await axiosInstance.get(`/messages/${userId}`);
       set({ messages: res.data });
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to load messages");
     } finally {
       set({ isMessagesLoading: false });
     }
   },
+
   sendMessage: async (messageData) => {
-    const { selectedUser, messages } = get();
+    const { selectedUser } = get();
+    if (!selectedUser?._id) return;
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      set({ messages: [...messages, res.data] });
+      const textPreview = res.data.text || (res.data.image ? "📷 Attachment" : "");
+      set({
+        messages: [...get().messages, res.data],
+        lastMessageTimes: {
+          ...get().lastMessageTimes,
+          [selectedUser._id]: res.data.createdAt || Date.now(),
+        },
+        lastMessageTexts: {
+          ...get().lastMessageTexts,
+          [selectedUser._id]: textPreview,
+        },
+      });
     } catch (error) {
-      toast.error(error.response.data.message);
+      const errMsg = error.response?.data?.error || error.response?.data?.message || "Failed to send message";
+      toast.error(errMsg);
     }
   },
 
@@ -98,24 +123,48 @@ export const useChatStore = create((set, get) => ({
 
     socket.on("newMessage", (newMessage) => {
       const { selectedUser } = get();
-      const isFromActiveUser = selectedUser && newMessage.senderId === selectedUser._id;
+      const senderId = newMessage.senderId?._id
+        ? String(newMessage.senderId._id)
+        : String(newMessage.senderId);
+
+      const isFromActiveUser =
+        selectedUser && String(selectedUser._id) === senderId;
+
+      const textPreview = newMessage.text || (newMessage.image ? "📷 Attachment" : "");
 
       if (isFromActiveUser) {
         set({
           messages: [...get().messages, newMessage],
           newIncomingCount: get().newIncomingCount + 1,
+          lastMessageTimes: {
+            ...get().lastMessageTimes,
+            [senderId]: newMessage.createdAt || Date.now(),
+          },
+          lastMessageTexts: {
+            ...get().lastMessageTexts,
+            [senderId]: textPreview,
+          },
         });
       } else {
-        const senderId = newMessage.senderId;
         const currentCount = get().unreadCounts[senderId] || 0;
         set({
           unreadCounts: {
             ...get().unreadCounts,
             [senderId]: currentCount + 1,
           },
+          lastMessageTimes: {
+            ...get().lastMessageTimes,
+            [senderId]: newMessage.createdAt || Date.now(),
+          },
+          lastMessageTexts: {
+            ...get().lastMessageTexts,
+            [senderId]: textPreview,
+          },
         });
       }
     });
+
+
 
     socket.on("messageUpdated", (updatedMessage) => {
       set({

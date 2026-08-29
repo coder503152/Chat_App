@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { connectDB } from "../lib/db.js";
 import User from "../models/user.model.js";
+import bcrypt from "bcryptjs";
 
 config();
 
@@ -90,7 +91,7 @@ const seedUsers = [
     email: "alexander.martin@example.com",
     fullName: "Alexander Martin",
     password: "123456",
-    profilePic: "https://randomuser.me/api/portraits/men/6.jpg",
+    profilePic: "https://randomuser.me/api/portraits/men/8.jpg",
   },
   {
     email: "daniel.rodriguez@example.com",
@@ -104,12 +105,29 @@ const seedDatabase = async () => {
   try {
     await connectDB();
 
-    await User.insertMany(seedUsers);
-    console.log("Database seeded successfully");
+    const salt = await bcrypt.genSalt(10);
+    const usersWithHashedPasswords = await Promise.all(
+      seedUsers.map(async (user) => {
+        const hashedPassword = await bcrypt.hash(user.password, salt);
+        return {
+          ...user,
+          password: hashedPassword,
+        };
+      })
+    );
+
+    // Clean existing seed users to prevent duplicates or plain-text password mismatches
+    const emails = seedUsers.map((u) => u.email);
+    await User.deleteMany({ email: { $in: emails } });
+
+    await User.insertMany(usersWithHashedPasswords);
+    console.log("Database seeded successfully with hashed passwords!");
+    process.exit(0);
   } catch (error) {
     console.error("Error seeding database:", error);
+    process.exit(1);
   }
 };
 
-// Call the function
 seedDatabase();
+

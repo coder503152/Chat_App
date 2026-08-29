@@ -5,8 +5,9 @@ import SidebarSkeleton from "./skeletons/SidebarSkeleton";
 import { Users, Search, X } from "lucide-react";
 
 const Sidebar = () => {
-  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, unreadCounts } = useChatStore();
+  const { getUsers, users, selectedUser, setSelectedUser, isUsersLoading, unreadCounts, lastMessageTimes, lastMessageTexts } = useChatStore();
   const { onlineUsers } = useAuthStore();
+
 
   const [showOnlineOnly, setShowOnlineOnly] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -15,11 +16,28 @@ const Sidebar = () => {
     getUsers();
   }, [getUsers]);
 
-  const filteredUsers = users.filter((user) => {
-    const matchesOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
-    const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesOnline && matchesSearch;
-  });
+  const onlineContactsCount = users.filter((u) => onlineUsers.includes(u._id)).length;
+
+  const filteredUsers = users
+    .filter((user) => {
+      const matchesOnline = showOnlineOnly ? onlineUsers.includes(user._id) : true;
+      const matchesSearch = user.fullName?.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesOnline && matchesSearch;
+    })
+    .sort((a, b) => {
+      const unreadA = unreadCounts[a._id] || 0;
+      const unreadB = unreadCounts[b._id] || 0;
+
+      if (unreadB !== unreadA) {
+        return unreadB - unreadA;
+      }
+
+      const timeA = lastMessageTimes[a._id] ? new Date(lastMessageTimes[a._id]).getTime() : 0;
+      const timeB = lastMessageTimes[b._id] ? new Date(lastMessageTimes[b._id]).getTime() : 0;
+
+      return timeB - timeA;
+    });
+
 
   if (isUsersLoading) return <SidebarSkeleton />;
 
@@ -71,7 +89,7 @@ const Sidebar = () => {
             <span>Show online only</span>
           </label>
           <span className="text-[11px] font-medium text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
-            {Math.max(0, onlineUsers.length - 1)} online
+            {onlineContactsCount} online
           </span>
         </div>
       </div>
@@ -91,7 +109,9 @@ const Sidebar = () => {
                 w-full p-2.5 flex items-center gap-3 rounded-xl transition-all duration-200 text-left relative group
                 ${
                   isSelected
-                    ? "bg-primary/10 text-primary border border-primary/20 shadow-sm font-medium"
+                    ? "bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium"
+                    : unreadCount > 0
+                    ? "bg-primary/10 border border-primary/40 text-base-content font-semibold shadow-md ring-1 ring-primary/20 animate-pulse"
                     : "hover:bg-base-200/80 text-base-content/80 hover:text-base-content"
                 }
               `}
@@ -109,8 +129,8 @@ const Sidebar = () => {
                   />
                 )}
                 {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 size-5 bg-primary text-primary-content text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-base-100 lg:hidden shadow-xs">
-                    {unreadCount > 9 ? "9+" : unreadCount}
+                  <span className="absolute -top-1 -right-1 size-5 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-base-100 lg:hidden shadow-sm animate-bounce">
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </div>
@@ -118,22 +138,35 @@ const Sidebar = () => {
               {/* User info - visible on larger screens */}
               <div className="hidden lg:flex items-center justify-between min-w-0 flex-1">
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-sm truncate">{user.fullName}</div>
-                  <div className="text-xs flex items-center gap-1 opacity-70">
-                    {isOnline ? (
+                  <div className="font-semibold text-sm truncate">
+                    {user.fullName}
+                  </div>
+
+                  <div className="text-xs truncate max-w-[140px]">
+                    {unreadCount > 0 ? (
+                      <span className="font-bold text-emerald-400 truncate block">
+                        {lastMessageTexts[user._id] || "New message"}
+                      </span>
+                    ) : lastMessageTexts[user._id] ? (
+                      <span className="text-base-content/60 truncate block">
+                        {lastMessageTexts[user._id]}
+                      </span>
+                    ) : isOnline ? (
                       <span className="text-emerald-500 font-medium">Online</span>
                     ) : (
                       <span className="text-base-content/50">Offline</span>
                     )}
                   </div>
+
                 </div>
 
                 {unreadCount > 0 && (
-                  <span className="badge badge-primary badge-sm font-bold text-[10px] shrink-0 shadow-xs animate-scaleUp">
-                    {unreadCount > 9 ? "9+" : `${unreadCount} new`}
+                  <span className="size-5.5 sm:size-6 rounded-full bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow-md flex items-center justify-center animate-scaleUp">
+                    {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </div>
+
             </button>
           );
         })}
@@ -147,6 +180,7 @@ const Sidebar = () => {
     </aside>
   );
 };
+
 
 export default Sidebar;
 
