@@ -59,26 +59,64 @@ export const useChatStore = create((set, get) => ({
 
   sendMessage: async (messageData) => {
     const { selectedUser } = get();
-    if (!selectedUser?._id) return;
+    const authUser = useAuthStore.getState().authUser;
+    if (!selectedUser?._id || !authUser) return;
+
+    const tempId = "temp-" + Date.now();
+    const optimisticMessage = {
+      _id: tempId,
+      senderId: authUser._id,
+      receiverId: selectedUser._id,
+      text: messageData.text || "",
+      image: messageData.image || null,
+      video: messageData.video || null,
+      isSending: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    const textPreview = messageData.text || (messageData.image ? "📷 Photo" : (messageData.video ? "🎥 Video" : ""));
+
+    // Optimistically add message to state immediately for instant feedback
+    set({
+      messages: [...get().messages, optimisticMessage],
+      lastMessageTimes: {
+        ...get().lastMessageTimes,
+        [selectedUser._id]: Date.now(),
+      },
+      lastMessageTexts: {
+        ...get().lastMessageTexts,
+        [selectedUser._id]: textPreview,
+      },
+    });
+
     try {
       const res = await axiosInstance.post(`/messages/send/${selectedUser._id}`, messageData);
-      const textPreview = res.data.text || (res.data.image ? "📷 Attachment" : "");
+      const finalPreview = res.data.text || (res.data.image ? "📷 Photo" : (res.data.video ? "🎥 Video" : ""));
+
       set({
-        messages: [...get().messages, res.data],
+        messages: get().messages.map((msg) =>
+          msg._id === tempId ? res.data : msg
+        ),
         lastMessageTimes: {
           ...get().lastMessageTimes,
           [selectedUser._id]: res.data.createdAt || Date.now(),
         },
         lastMessageTexts: {
           ...get().lastMessageTexts,
-          [selectedUser._id]: textPreview,
+          [selectedUser._id]: finalPreview,
         },
       });
     } catch (error) {
+      // Revert optimistic message on failure
+      set({
+        messages: get().messages.filter((msg) => msg._id !== tempId),
+      });
       const errMsg = error.response?.data?.error || error.response?.data?.message || "Failed to send message";
       toast.error(errMsg);
     }
   },
+
+
 
   updateMessage: async (messageId, text) => {
     try {
@@ -130,7 +168,8 @@ export const useChatStore = create((set, get) => ({
       const isFromActiveUser =
         selectedUser && String(selectedUser._id) === senderId;
 
-      const textPreview = newMessage.text || (newMessage.image ? "📷 Attachment" : "");
+      const textPreview = newMessage.text || (newMessage.image ? "📷 Photo" : (newMessage.video ? "🎥 Video" : ""));
+
 
       if (isFromActiveUser) {
         set({

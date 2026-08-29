@@ -42,23 +42,21 @@ const Sidebar = () => {
   if (isUsersLoading) return <SidebarSkeleton />;
 
   return (
-    <aside className="h-full w-20 lg:w-72 border-r border-base-300 flex flex-col transition-all duration-200 bg-base-100/50">
+    <aside className="h-full w-full border-r border-base-300 flex flex-col transition-all duration-200 bg-base-100/50">
       {/* Header section */}
-      <div className="border-b border-base-300 w-full p-4 space-y-3">
+      <div className="border-b border-base-300 w-full p-3.5 sm:p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-lg bg-primary/10 text-primary">
               <Users className="size-5" />
             </div>
-            <span className="font-semibold text-sm hidden lg:block">Contacts</span>
+            <span className="font-semibold text-sm">Contacts</span>
           </div>
-          <span className="badge badge-sm badge-primary hidden lg:inline-flex font-mono">
-            {users.length}
-          </span>
+         
         </div>
 
         {/* Search Input */}
-        <div className="relative hidden lg:block">
+        <div className="relative block">
           <Search className="size-4 absolute left-3 top-1/2 -translate-y-1/2 text-base-content/40" />
           <input
             type="text"
@@ -78,7 +76,7 @@ const Sidebar = () => {
         </div>
 
         {/* Online filter toggle */}
-        <div className="hidden lg:flex items-center justify-between text-xs pt-1">
+        <div className="flex items-center justify-between text-xs pt-1">
           <label className="cursor-pointer flex items-center gap-2 text-base-content/70 hover:text-base-content transition-colors select-none">
             <input
               type="checkbox"
@@ -94,8 +92,10 @@ const Sidebar = () => {
         </div>
       </div>
 
+
       {/* User list */}
-      <div className="overflow-y-auto w-full py-2 px-2 space-y-1">
+      <div className="overflow-y-auto overscroll-contain w-full py-2 px-2 space-y-1">
+
         {filteredUsers.map((user) => {
           const isSelected = selectedUser?._id === user._id;
           const isOnline = onlineUsers.includes(user._id);
@@ -111,7 +111,7 @@ const Sidebar = () => {
                   isSelected
                     ? "bg-primary/15 text-primary border border-primary/30 shadow-sm font-medium"
                     : unreadCount > 0
-                    ? "bg-primary/10 border border-primary/40 text-base-content font-semibold shadow-md ring-1 ring-primary/20 animate-pulse"
+                    ? "bg-primary/10 border border-primary/40 text-base-content font-semibold shadow-md ring-1 ring-primary/20"
                     : "hover:bg-base-200/80 text-base-content/80 hover:text-base-content"
                 }
               `}
@@ -125,24 +125,19 @@ const Sidebar = () => {
                 {isOnline && (
                   <span
                     className="absolute bottom-0 right-0 size-3 bg-emerald-500 
-                    rounded-full ring-2 ring-base-100 animate-pulse"
+                    rounded-full ring-2 ring-base-100"
                   />
-                )}
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 size-5 bg-emerald-500 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-base-100 lg:hidden shadow-sm animate-bounce">
-                    {unreadCount > 99 ? "99+" : unreadCount}
-                  </span>
                 )}
               </div>
 
-              {/* User info - visible on larger screens */}
-              <div className="hidden lg:flex items-center justify-between min-w-0 flex-1">
+              {/* User info */}
+              <div className="flex items-center justify-between min-w-0 flex-1">
                 <div className="min-w-0 flex-1">
                   <div className="font-semibold text-sm truncate">
                     {user.fullName}
                   </div>
 
-                  <div className="text-xs truncate max-w-[140px]">
+                  <div className="text-xs truncate max-w-[200px] sm:max-w-[140px]">
                     {unreadCount > 0 ? (
                       <span className="font-bold text-emerald-400 truncate block">
                         {lastMessageTexts[user._id] || "New message"}
@@ -157,15 +152,16 @@ const Sidebar = () => {
                       <span className="text-base-content/50">Offline</span>
                     )}
                   </div>
-
                 </div>
 
                 {unreadCount > 0 && (
-                  <span className="size-5.5 sm:size-6 rounded-full bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow-md flex items-center justify-center animate-scaleUp">
+                  <span className="size-5.5 sm:size-6 rounded-full bg-emerald-500 text-white font-extrabold text-[11px] shrink-0 shadow-md flex items-center justify-center">
                     {unreadCount > 99 ? "99+" : unreadCount}
                   </span>
                 )}
               </div>
+
+
 
             </button>
           );

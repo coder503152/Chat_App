@@ -22,7 +22,7 @@ export const getUsersForSidebar = async (req, res) => {
         const unreadCount = await Message.countDocuments({
           senderId: user._id,
           receiverId: loggedInUserId,
-          isRead: { $ne: true },
+          isRead: false,
         });
 
         const lastMessage = await Message.findOne({
@@ -32,14 +32,14 @@ export const getUsersForSidebar = async (req, res) => {
           ],
         })
           .sort({ createdAt: -1 })
-          .select("text image createdAt");
+          .select("text image video createdAt");
 
         return {
           ...user.toObject(),
           unreadCount,
           lastMessageTime: lastMessage ? lastMessage.createdAt : null,
           lastMessageText: lastMessage
-            ? lastMessage.text || (lastMessage.image ? "📷 Attachment" : "")
+            ? lastMessage.text || (lastMessage.image ? "📷 Photo" : (lastMessage.video ? "🎥 Video" : ""))
             : "",
         };
       })
@@ -58,9 +58,9 @@ export const getMessages = async (req, res) => {
     const { id: userToChatId } = req.params;
     const myId = req.user._id;
 
-    // Mark all unread messages from this sender to logged-in user as read
+    // Mark all unread/unseen messages from this contact to me as read in MongoDB
     await Message.updateMany(
-      { senderId: userToChatId, receiverId: myId, isRead: false },
+      { senderId: userToChatId, receiverId: myId, isRead: { $ne: true } },
       { isRead: true }
     );
 
@@ -81,15 +81,24 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body; // The content of the message I'm bout to send....
-    const { id: receiverId } = req.params; // The Id of the person i am sending the message to ...
+    const { text, image, video } = req.body;
+    const { id: receiverId } = req.params;
     const senderId = req.user._id;
 
     let imageUrl;
     if (image) {
-      // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
+    }
+
+    let videoUrl;
+    if (video) {
+      const uploadResponse = await cloudinary.uploader.upload(video, {
+        resource_type: "video",
+        folder: "chat_videos",
+        chunk_size: 6000000,
+      });
+      videoUrl = uploadResponse.secure_url;
     }
 
     const newMessage = new Message({
@@ -97,6 +106,8 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
+      video: videoUrl,
+      isRead: false,
     });
 
     await newMessage.save();
@@ -108,10 +119,14 @@ export const sendMessage = async (req, res) => {
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
-    res.status(500).json({ error: "Internal server error" });
+    console.error("Error in sendMessage controller:", error);
+    const cloudError = error.message || error.error?.message || "Failed to upload media to Cloudinary";
+    res.status(400).json({ message: cloudError });
   }
 };
+
+
+
 
 export const updateMessage = async (req, res) => {
   try {

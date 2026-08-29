@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { axiosInstance } from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { io } from "socket.io-client";
+import { useChatStore } from "./useChatStore.js";
 
 const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
@@ -98,10 +99,12 @@ export const useAuthStore = create((set, get) => ({
     socket.on("getOnlineUsers", (userIds) => {
       set({ onlineUsers: userIds });
     });
+
+    useChatStore.getState().subscribeToMessages();
   },
   disconnectSocket: () => {
     if (get().socket?.connected) get().socket.disconnect();
     set({ socket: null, onlineUsers: [] });
   },
-
 }));
+

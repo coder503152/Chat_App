@@ -105,19 +105,47 @@ export const logout = (req, res) => {
 
 export const updateProfile = async (req, res) => {
   try {
-    const { profilePic } = req.body;
-    const userId = req.user._id; // An auth middleware runs before t
+    const { profilePic, fullName, email } = req.body;
+    const userId = req.user._id;
 
-    if (!profilePic) {
-      return res.status(400).json({ message: "Profile pic is required" });
+    const updateFields = {};
+
+    if (profilePic) {
+      const uploadResponse = await cloudinary.uploader.upload(profilePic);
+      updateFields.profilePic = uploadResponse.secure_url;
     }
 
-    const uploadResponse = await cloudinary.uploader.upload(profilePic); // Stores the profile pic in the cloudinary and return the secure link to the pic.
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: uploadResponse.secure_url },
-      { new: true }
-    );
+    if (fullName !== undefined) {
+      if (!fullName.trim()) {
+        return res.status(400).json({ message: "Full Name cannot be empty" });
+      }
+      updateFields.fullName = fullName.trim();
+    }
+
+    if (email !== undefined) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email.trim())) {
+        return res.status(400).json({ message: "Invalid email format" });
+      }
+
+      const existingUser = await User.findOne({
+        email: email.trim(),
+        _id: { $ne: userId },
+      });
+      if (existingUser) {
+        return res.status(400).json({ message: "Email is already taken by another account" });
+      }
+
+      updateFields.email = email.trim();
+    }
+
+    if (Object.keys(updateFields).length === 0) {
+      return res.status(400).json({ message: "No profile data provided to update" });
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updateFields, {
+      new: true,
+    }).select("-password");
 
     res.status(200).json(updatedUser);
   } catch (error) {
@@ -125,6 +153,7 @@ export const updateProfile = async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 export const checkAuth = (req, res) => {
   try {

@@ -84,7 +84,7 @@ const AISummaryModal = () => {
             <div>
               <h3 className="font-semibold text-lg flex items-center gap-2">
                 AI Chat & Intent Summary
-                <span className="badge badge-primary badge-sm">Pro</span>
+                
               </h3>
               <p className="text-xs text-base-content/70">
                 Messages from {selectedUser?.fullName || "User"}

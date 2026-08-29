@@ -14,8 +14,11 @@ import { useEffect } from "react";
 import { Loader } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
+import { useChatStore } from "./store/useChatStore";
+
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth, onlineUsers } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, onlineUsers, socket } = useAuthStore();
+  const { subscribeToMessages } = useChatStore();
   const { theme } = useThemeStore();
 
   console.log({ onlineUsers });
@@ -23,6 +26,13 @@ const App = () => {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  useEffect(() => {
+    if (authUser && socket) {
+      subscribeToMessages();
+    }
+  }, [authUser, socket, subscribeToMessages]);
+
 
   console.log({ authUser });
 

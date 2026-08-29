@@ -1,8 +1,7 @@
-import { X, Sparkles, Bot } from "lucide-react";
+import { X, Sparkles, Bot, ArrowLeft } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
-
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser } = useChatStore();
@@ -32,16 +31,26 @@ const ChatHeader = () => {
   return (
     <div className="p-3.5 border-b border-base-300 bg-base-100/60 backdrop-blur-md">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Back button for mobile/tablet */}
+          <button
+            onClick={() => setSelectedUser(null)}
+            className="btn btn-sm btn-ghost btn-circle lg:hidden text-base-content/70 hover:text-base-content -ml-1"
+            title="Back to contacts"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+
           {/* Avatar */}
           <div className="avatar">
-            <div className="size-11 rounded-full relative border border-base-300 shadow-xs overflow-hidden">
+            <div className="size-10 sm:size-11 rounded-full relative border border-base-300 shadow-xs overflow-hidden">
               <img src={selectedUser?.profilePic || "/avatar.png"} alt={selectedUser?.fullName} />
               {isOnline && (
-                <span className="absolute bottom-0 right-0 size-3 bg-emerald-500 rounded-full ring-2 ring-base-100 animate-pulse" />
+                <span className="absolute bottom-0 right-0 size-3 bg-emerald-500 rounded-full ring-2 ring-base-100" />
               )}
             </div>
           </div>
+
 
           {/* User info */}
           <div>

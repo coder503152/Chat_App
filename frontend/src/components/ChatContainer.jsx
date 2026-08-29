@@ -1,7 +1,8 @@
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
 import { useEffect, useRef, useState } from "react";
-import { Pencil, Trash2, Check, X, Sparkles } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Pencil, Trash2, Check, X, Sparkles, Play, Download } from "lucide-react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -28,13 +29,14 @@ const ChatContainer = () => {
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
 
-
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editText, setEditText] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
   const [isBannerDismissed, setIsBannerDismissed] = useState(false);
+  const [previewMedia, setPreviewMedia] = useState(null);
+
 
   useEffect(() => {
     if (selectedUser?._id) {
@@ -164,11 +166,14 @@ const ChatContainer = () => {
       )}
 
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+
         {(messages || []).map((message) => {
 
           const isMyMessage = message.senderId === authUser?._id;
           const isEditing = editingMessageId === message._id;
+
+          const isMediaOnly = (message.image || message.video) && !message.text;
 
           return (
             <div
@@ -193,25 +198,88 @@ const ChatContainer = () => {
                 <time className="text-[11px] font-mono">
                   {formatMessageTime(message.createdAt)}
                 </time>
-                {message.isEdited && (
+                {message.isSending && (
+                  <span className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1 animate-pulse">
+                    <span className="loading loading-spinner loading-xs text-emerald-400"></span> Sending...
+                  </span>
+                )}
+                {message.isEdited && !message.isSending && (
                   <span className="text-[10px] opacity-60 italic font-light">(edited)</span>
                 )}
               </div>
 
               <div
                 className={`chat-bubble flex flex-col relative shadow-sm rounded-2xl ${
+                  isMediaOnly ? "p-1" : "p-3 sm:p-3.5"
+                } ${
                   isMyMessage
                     ? "bg-primary text-primary-content rounded-tr-xs"
                     : "bg-base-200 text-base-content border border-base-300 rounded-tl-xs"
                 }`}
               >
                 {message.image && (
-                  <img
-                    src={message.image}
-                    alt="Attachment"
-                    className="sm:max-w-[240px] rounded-xl mb-2 border border-base-content/10 shadow-sm"
-                  />
+                  <div
+                    onClick={() => !message.isSending && setPreviewMedia({ type: "image", url: message.image })}
+                    className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/20 shadow-xs ${
+                      message.isSending ? "cursor-wait" : "cursor-pointer"
+                    }`}
+                    title={message.isSending ? "Uploading image..." : "Click to view full image"}
+                  >
+                    <img
+                      src={message.image}
+                      alt="Attachment"
+                      className={`sm:max-w-[260px] max-h-[240px] w-full object-cover transition-all ${
+                        message.isSending ? "opacity-40 blur-[1px]" : "group-hover:scale-105 duration-300"
+                      }`}
+                    />
+                    {message.isSending && (
+                      <div className="absolute inset-0 bg-black/50 backdrop-blur-xs flex flex-col items-center justify-center gap-1.5 p-2">
+                        <div className="size-10 rounded-full bg-black/70 border border-emerald-500/50 flex items-center justify-center shadow-xl">
+                          <span className="loading loading-spinner loading-sm text-emerald-400"></span>
+                        </div>
+                        <span className="text-[10px] font-medium text-emerald-300 bg-black/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                          Sending...
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 )}
+
+                {message.video && (
+                  <div
+                    onClick={() => !message.isSending && setPreviewMedia({ type: "video", url: message.video })}
+                    className={`relative group overflow-hidden rounded-xl ${message.text ? "mb-2" : "mb-0"} border border-base-content/20 shadow-xs w-[220px] sm:w-[260px] h-[140px] sm:h-[160px] bg-black/60 flex items-center justify-center ${
+                      message.isSending ? "cursor-wait" : "cursor-pointer"
+                    }`}
+                    title={message.isSending ? "Uploading video..." : "Click to play video"}
+                  >
+                    <video
+                      src={message.video}
+                      className={`w-full h-full object-cover transition-opacity ${
+                        message.isSending ? "opacity-40 blur-[1px]" : "opacity-85 group-hover:opacity-100"
+                      }`}
+                      preload="metadata"
+                    />
+
+                    {message.isSending ? (
+                      <div className="absolute inset-0 bg-black/55 backdrop-blur-xs flex flex-col items-center justify-center gap-2 p-2">
+                        <div className="size-11 sm:size-12 rounded-full bg-black/70 border border-emerald-500/50 flex items-center justify-center shadow-xl">
+                          <span className="loading loading-spinner loading-md text-emerald-400"></span>
+                        </div>
+                        <span className="text-[11px] font-medium text-emerald-300 bg-black/70 px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                          Uploading video...
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="absolute size-11 sm:size-12 rounded-full bg-emerald-500 text-white flex items-center justify-center group-hover:scale-110 transition-transform shadow-xl ring-4 ring-emerald-500/30">
+                        <Play className="size-5 sm:size-6 fill-white translate-x-0.5" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+
+
 
                 {isEditing ? (
                   <div className="flex flex-col gap-2 min-w-[220px] pt-1">
@@ -325,8 +393,70 @@ const ChatContainer = () => {
           </div>
         </div>
       )}
+
+      {/* Fullscreen Media Viewer Modal */}
+      {previewMedia &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[99999] bg-black/95 backdrop-blur-2xl w-screen h-screen flex flex-col justify-between p-3 sm:p-6 select-none overflow-hidden animate-fadeIn"
+            onClick={() => setPreviewMedia(null)}
+          >
+            {/* Top Header Bar */}
+            <div className="w-full flex items-center justify-between z-50 px-2 sm:px-4 py-2 shrink-0">
+              <div className="flex items-center gap-2 text-white/90 text-sm font-semibold">
+                {previewMedia.type === "image" ? (
+                  <span className="badge badge-neutral gap-1.5 px-3 py-2 border border-white/20 text-white">📷 Photo Viewer</span>
+                ) : (
+                  <span className="badge gap-1.5 px-3 py-2 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">🎥 Video Player</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <a
+                  href={previewMedia.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  download
+                  onClick={(e) => e.stopPropagation()}
+                  className="btn btn-circle btn-sm sm:btn-md bg-white/15 hover:bg-white/30 border-0 text-white transition-all shadow-lg"
+                  title="Download / Open original"
+                >
+                  <Download className="size-4 sm:size-5" />
+                </a>
+                <button
+                  onClick={() => setPreviewMedia(null)}
+                  className="btn btn-circle btn-sm sm:btn-md bg-white/15 hover:bg-white/30 border-0 text-white transition-all shadow-lg"
+                  title="Close"
+                >
+                  <X className="size-5 sm:size-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Media Content Area */}
+            <div
+              className="flex-1 w-full h-full min-h-0 flex items-center justify-center p-2 sm:p-4 my-auto overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {previewMedia.type === "image" ? (
+                <img
+                  src={previewMedia.url}
+                  alt="Full View"
+                  className="max-w-full max-h-[82vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
+                />
+              ) : (
+                <video
+                  src={previewMedia.url}
+                  controls
+                  autoPlay
+                  className="max-w-full max-h-[80vh] w-auto h-auto object-contain rounded-2xl shadow-2xl border border-white/10"
+                />
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
 export default ChatContainer;
-

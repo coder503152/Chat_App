@@ -23,9 +23,7 @@ const Navbar = () => {
               <div className="flex flex-col">
                 <h1 className="text-lg font-bold tracking-tight flex items-center gap-1.5">
                   Chatty
-                  <span className="text-[10px] uppercase font-semibold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                    Pro
-                  </span>
+                  
                 </h1>
               </div>
             </Link>
@@ -33,12 +31,13 @@ const Navbar = () => {
 
           <div className="flex items-center gap-2">
             <Link
-              to={"/settings"}
+              to={location.pathname === "/settings" ? "/" : "/settings"}
               className={`btn btn-sm gap-2 transition-all ${
                 location.pathname === "/settings"
                   ? "btn-primary shadow-sm"
                   : "btn-ghost hover:bg-base-200"
               }`}
+              title={location.pathname === "/settings" ? "Close settings" : "Open settings"}
             >
               <Settings className="w-4 h-4" />
               <span className="hidden sm:inline">Settings</span>
@@ -47,12 +46,13 @@ const Navbar = () => {
             {authUser && (
               <>
                 <Link
-                  to={"/profile"}
+                  to={location.pathname === "/profile" ? "/" : "/profile"}
                   className={`btn btn-sm gap-2 transition-all ${
                     location.pathname === "/profile"
                       ? "btn-primary shadow-sm"
                       : "btn-ghost hover:bg-base-200"
                   }`}
+                  title={location.pathname === "/profile" ? "Close profile" : "Open profile"}
                 >
                   <div className="relative size-5 rounded-full overflow-hidden border border-base-content/20">
                     <img
