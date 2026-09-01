@@ -2,7 +2,8 @@ import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Trash2, Check, X, Sparkles, Play, Download } from "lucide-react";
+import { Pencil, Trash2, Check, X, Sparkles, Play, Download, Reply, Smile, MoreVertical } from "lucide-react";
+
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -24,11 +25,15 @@ const ChatContainer = () => {
     deleteMessage,
     newIncomingCount,
     resetNewIncomingCount,
+    typingUsers,
+    setReplyingTo,
+    addReaction,
   } = useChatStore();
   const { summarizeConversation, isSummarizing } = useAIStore();
-  const { authUser } = useAuthStore();
+  const { authUser, onlineUsers } = useAuthStore();
   const messageEndRef = useRef(null);
 
+  const [activeEmojiPickerId, setActiveEmojiPickerId] = useState(null);
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editText, setEditText] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
@@ -117,74 +122,32 @@ const ChatContainer = () => {
     );
   }
 
-  const showNewMessageBanner = newIncomingCount >= 1 && !isBannerDismissed;
-  const countBadgeText = newIncomingCount >= 5 ? `${newIncomingCount}+` : `${newIncomingCount}`;
-
-
   return (
-    <div className="flex-1 flex flex-col overflow-auto bg-base-100/40 relative">
+    <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-base-100/40 relative">
       <ChatHeader />
 
-      {/* Real-time Dynamic New Messages Summary Alert Banner */}
-      {showNewMessageBanner && (
-        <div className="mx-4 mt-3 p-3 rounded-2xl bg-gradient-to-r from-primary/15 via-secondary/10 to-primary/10 border border-primary/30 shadow-lg flex items-center justify-between gap-3 animate-fadeIn z-20 backdrop-blur-md">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="p-2 rounded-xl bg-primary text-primary-content shrink-0 shadow-sm">
-              <Sparkles className="size-4 animate-pulse" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold text-base-content flex items-center gap-1.5">
-                <span>{countBadgeText} new messages received</span>
-                <span className="badge badge-xs badge-primary animate-pulse">Live</span>
-              </p>
-              <p className="text-[11px] text-base-content/70 truncate">
-                Click to let AI summarize the chat & explain what {selectedUser?.fullName?.split(" ")[0]} is trying to say.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={handleSummarizeNewBatch}
-              disabled={isSummarizing}
-              className="btn btn-xs sm:btn-sm btn-primary rounded-xl font-semibold text-xs gap-1 shadow-sm"
-            >
-              <Sparkles className="size-3.5" />
-              Summarize Chat
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsBannerDismissed(true)}
-              className="btn btn-xs btn-ghost btn-circle text-base-content/50 hover:text-base-content"
-              title="Dismiss banner"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
 
-      <div className="flex-1 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4">
 
         {(messages || []).map((message, index) => {
           const isMyMessage = (message.senderId?._id ? String(message.senderId._id) : String(message.senderId)) === String(authUser?._id);
           const isEditing = editingMessageId === message._id;
           const isMediaOnly = (message.image || message.video) && !message.text;
-
-          // Consecutive checks (within 2 minutes)
-          const prevMsg = index > 0 ? messages[index - 1] : null;
-          const isPrevFromSameUser = prevMsg && (prevMsg.senderId?._id ? String(prevMsg.senderId._id) : String(prevMsg.senderId)) === (message.senderId?._id ? String(message.senderId._id) : String(message.senderId));
-          const isConsecutive = isPrevFromSameUser && (new Date(message.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 120000;
+          const isReceiverOnline = onlineUsers.includes(selectedUser?._id);
 
           // Date Separator (day transition)
+          const prevMsg = index > 0 ? messages[index - 1] : null;
           const showDateSeparator = !prevMsg || new Date(message.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
 
+          // Consecutive checks (within 5 minutes, same user, no date separator)
+          const isPrevFromSameUser = prevMsg && (prevMsg.senderId?._id ? String(prevMsg.senderId._id) : String(prevMsg.senderId)) === (message.senderId?._id ? String(message.senderId._id) : String(message.senderId));
+          const isConsecutive = isPrevFromSameUser && !showDateSeparator && (new Date(message.createdAt).getTime() - new Date(prevMsg.createdAt).getTime()) < 300000;
+
           return (
-            <div key={message._id} className="flex flex-col">
+            <div key={message._id} className="flex flex-col min-w-0">
               {showDateSeparator && (
-                <div className="flex items-center justify-center my-4 select-none animate-fadeIn">
+                <div className="flex items-center justify-center my-3 select-none animate-fadeIn">
                   <span className="bg-base-200/80 text-base-content/60 text-[11px] font-semibold px-3 py-1 rounded-full border border-base-300 shadow-3xs">
                     {formatMessageDateSeparator(message.createdAt)}
                   </span>
@@ -193,7 +156,7 @@ const ChatContainer = () => {
 
               <div
                 className={`chat ${isMyMessage ? "chat-end" : "chat-start"} group relative ${
-                  isConsecutive ? "mt-0.5 sm:mt-1" : "mt-3 sm:mt-4"
+                  isConsecutive ? "mt-1" : "mt-2.5 sm:mt-3"
                 } animate-fadeIn`}
               >
                 {/* Avatar */}
@@ -226,7 +189,7 @@ const ChatContainer = () => {
 
                 {/* Chat Bubble */}
                 <div
-                  className={`chat-bubble flex flex-col relative shadow-sm max-w-[85%] sm:max-w-[70%] ${
+                  className={`chat-bubble flex flex-col relative shadow-sm max-w-[85%] sm:max-w-[70%] min-w-0 [overflow-wrap:anywhere] break-words ${
                     isMediaOnly ? "p-1" : "p-3 pb-1.5 pr-4"
                   } ${
                     isMyMessage
@@ -332,7 +295,7 @@ const ChatContainer = () => {
                   ) : (
                     <>
                       {message.text && (
-                        <p className="whitespace-pre-wrap break-words leading-relaxed text-sm">
+                        <p className="whitespace-pre-wrap [overflow-wrap:anywhere] break-words leading-relaxed text-sm">
                           {message.text}
                         </p>
                       )}
@@ -343,11 +306,13 @@ const ChatContainer = () => {
                         <span>{formatMessageTime(message.createdAt)}</span>
                         {message.isEdited && <span className="opacity-80 font-sans">(edited)</span>}
                         {isMyMessage && !message.isSending && (
-                          <span className="ml-0.5">
+                          <span className="ml-0.5 font-sans font-bold">
                             {message.isRead ? (
-                              <span className="font-bold text-[10px] text-accent tracking-tighter" title="Seen">✓✓</span>
+                              <span className="text-[10px] text-sky-400 font-bold tracking-tighter" title="Seen / Read">✓✓</span>
+                            ) : isReceiverOnline ? (
+                              <span className="text-[10px] opacity-75 tracking-tighter" title="Delivered (User is logged in)">✓✓</span>
                             ) : (
-                              <span className="text-[10px]" title="Delivered">✓</span>
+                              <span className="text-[10px] opacity-75" title="Sent (User is offline)">✓</span>
                             )}
                           </span>
                         )}
@@ -358,10 +323,65 @@ const ChatContainer = () => {
                     </>
                   )}
 
-                  {/* Hover action toolbar for user's own sent messages */}
-                  {isMyMessage && !isEditing && (
-                    <div className="absolute -top-7 right-0 hidden group-hover:flex items-center gap-0.5 bg-base-300/90 backdrop-blur-md border border-base-content/10 px-1 py-0.5 rounded-lg shadow-md z-10 animate-fadeIn">
-                      {message.text && (
+                  {/* Reaction badge */}
+                  {message.reaction && (
+                    <div className="absolute -bottom-2.5 right-2 bg-base-300 border border-base-content/20 text-xs px-1.5 py-0.5 rounded-full shadow-md animate-scaleUp select-none">
+                      {message.reaction}
+                    </div>
+                  )}
+
+                  {/* Interactive Quick Emoji Reaction Popover */}
+                  {activeEmojiPickerId === message._id && (
+                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-base-300/95 backdrop-blur-md border border-base-content/20 px-2 py-1 rounded-full shadow-2xl flex items-center gap-1.5 z-30 animate-scaleUp">
+                      {["❤️", "👍", "😂", "🔥", "😮", "🎉"].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => {
+                            addReaction(message._id, emoji);
+                            setActiveEmojiPickerId(null);
+                          }}
+                          className="hover:scale-125 transition-transform text-sm p-0.5"
+                          title={`React with ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Hover action toolbar for messages */}
+                  {!isEditing && (
+                    <div
+                      className={`absolute -top-7 ${
+                        isMyMessage ? "right-0" : "left-0"
+                      } hidden group-hover:flex items-center gap-0.5 bg-base-300/90 backdrop-blur-md border border-base-content/10 px-1 py-0.5 rounded-xl shadow-md z-10 animate-fadeIn`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setReplyingTo({
+                            _id: message._id,
+                            text: message.text || (message.image ? "📷 Photo" : "🎥 Video"),
+                            senderName: isMyMessage ? "You" : selectedUser?.fullName?.split(" ")[0],
+                          })
+                        }
+                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-primary transition-colors"
+                        title="Reply to message"
+                      >
+                        <Reply className="size-3" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveEmojiPickerId(activeEmojiPickerId === message._id ? null : message._id)}
+                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-warning transition-colors"
+                        title="Add emoji reaction"
+                      >
+                        <Smile className="size-3" />
+                      </button>
+
+                      {isMyMessage && message.text && (
                         <button
                           type="button"
                           onClick={() => handleStartEdit(message)}
@@ -371,13 +391,24 @@ const ChatContainer = () => {
                           <Pencil className="size-3" />
                         </button>
                       )}
+
+                      {isMyMessage && (
+                        <button
+                          type="button"
+                          onClick={() => handleConfirmDelete(message._id)}
+                          className="btn btn-ghost btn-xs btn-circle p-1 hover:text-error transition-colors"
+                          title="Delete message"
+                        >
+                          <Trash2 className="size-3" />
+                        </button>
+                      )}
+
                       <button
                         type="button"
-                        onClick={() => handleConfirmDelete(message._id)}
-                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-error transition-colors"
-                        title="Delete message"
+                        className="btn btn-ghost btn-xs btn-circle p-1 hover:text-base-content transition-colors"
+                        title="More options"
                       >
-                        <Trash2 className="size-3" />
+                        <MoreVertical className="size-3" />
                       </button>
                     </div>
                   )}
@@ -389,6 +420,19 @@ const ChatContainer = () => {
         <div ref={messageEndRef} />
       </div>
 
+      {/* Typing Indicator */}
+      {selectedUser?._id && typingUsers[selectedUser._id] && (
+        <div className="px-4 py-1.5 flex items-center gap-2 text-xs text-base-content/70 animate-fadeIn bg-base-100/30 backdrop-blur-xs border-t border-base-300/40">
+          <div className="flex items-center gap-1">
+            <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.3s]"></span>
+            <span className="size-1.5 rounded-full bg-primary animate-bounce [animation-delay:-0.15s]"></span>
+            <span className="size-1.5 rounded-full bg-primary animate-bounce"></span>
+          </div>
+          <span className="font-medium text-[11px] text-base-content/80">
+            {selectedUser?.fullName?.split(" ")[0]} is typing...
+          </span>
+        </div>
+      )}
 
       <MessageInput />
       <AISummaryModal />

@@ -14,8 +14,25 @@ export const useChatStore = create((set, get) => ({
   lastMessageTimes: {},
   lastMessageTexts: {},
   typingUsers: {},
+  replyingTo: null,
 
+  setReplyingTo: (replyData) => set({ replyingTo: replyData }),
+  addReaction: async (messageId, emoji) => {
+    const currentMsg = get().messages.find((m) => m._id === messageId);
+    const newReaction = currentMsg?.reaction === emoji ? null : emoji;
 
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg._id === messageId ? { ...msg, reaction: newReaction } : msg
+      ),
+    }));
+
+    try {
+      await axiosInstance.put(`/messages/react/${messageId}`, { reaction: emoji });
+    } catch (error) {
+      console.error("Failed to save reaction in DB:", error);
+    }
+  },
 
   resetNewIncomingCount: () => set({ newIncomingCount: 0 }),
   clearUnreadCount: (userId) =>
@@ -224,6 +241,14 @@ export const useChatStore = create((set, get) => ({
       });
     });
 
+    socket.on("messageReacted", (updatedMessage) => {
+      set({
+        messages: get().messages.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        ),
+      });
+    });
+
     socket.on("typing", ({ senderId }) => {
       set((state) => ({
         typingUsers: { ...state.typingUsers, [senderId]: true },
@@ -251,6 +276,7 @@ export const useChatStore = create((set, get) => ({
     socket.off("newMessage");
     socket.off("messageUpdated");
     socket.off("messageDeleted");
+    socket.off("messageReacted");
     socket.off("typing");
     socket.off("stopTyping");
     socket.off("messagesRead");

@@ -1,7 +1,8 @@
-import { X, Sparkles, Bot, ArrowLeft } from "lucide-react";
+import { X, Sparkles, Bot, ArrowLeft, Search } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
+
 
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
@@ -93,6 +94,15 @@ const ChatHeader = () => {
           </button>
 
 
+
+          {/* Search Message button */}
+          <button
+            type="button"
+            className="btn btn-xs sm:btn-sm btn-ghost btn-circle text-base-content/60 hover:text-base-content"
+            title="Search in chat"
+          >
+            <Search className="size-4" />
+          </button>
 
           {/* Close button */}
           <button

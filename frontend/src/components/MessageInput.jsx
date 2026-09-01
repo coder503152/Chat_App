@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
 import { useAuthStore } from "../store/useAuthStore";
-import { Image, Send, X, Sparkles, Wand2 } from "lucide-react";
+import { Image, Send, X, Sparkles, Wand2, Reply } from "lucide-react";
 import toast from "react-hot-toast";
 
 const MessageInput = () => {
@@ -13,7 +13,7 @@ const MessageInput = () => {
   const fileInputRef = useRef(null);
   const textInputRef = useRef(null);
 
-  const { sendMessage, selectedUser } = useChatStore();
+  const { sendMessage, selectedUser, replyingTo, setReplyingTo } = useChatStore();
   const {
     replySuggestions,
     isGeneratingSuggestions,
@@ -138,7 +138,9 @@ const MessageInput = () => {
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
 
     const messageData = {
-      text: text.trim(),
+      text: replyingTo
+        ? `↩️ Replying to ${replyingTo.senderName}:\n"${replyingTo.text?.slice(0, 80)}${(replyingTo.text?.length || 0) > 80 ? "..." : ""}"\n\n${text.trim()}`
+        : text.trim(),
       image: imagePreview,
       video: videoPreview,
     };
@@ -147,9 +149,11 @@ const MessageInput = () => {
     setText("");
     setImagePreview(null);
     setVideoPreview(null);
+    setReplyingTo(null);
     clearSuggestions();
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (textInputRef.current) textInputRef.current.style.height = "auto";
+
 
     try {
       await sendMessage(messageData);
@@ -180,6 +184,28 @@ const MessageInput = () => {
 
   return (
     <div className="p-3 sm:p-4 w-full bg-base-100/40 border-t border-base-300/60 backdrop-blur-sm">
+      {/* Quoted Reply Banner */}
+      {replyingTo && (
+        <div className="mb-2.5 p-2.5 bg-primary/10 border-l-4 border-primary rounded-r-2xl flex items-center justify-between gap-3 animate-fadeIn">
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold text-primary flex items-center gap-1.5">
+              <Reply className="size-3.5" /> Replying to {replyingTo.senderName}
+            </p>
+            <p className="text-xs text-base-content/80 truncate font-medium mt-0.5">
+              {replyingTo.text}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setReplyingTo(null)}
+            className="btn btn-xs btn-ghost btn-circle text-base-content/50 hover:text-base-content"
+            title="Cancel reply"
+          >
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Reply Suggestions Box */}
       {isGeneratingSuggestions && (
         <div className="mb-2.5 flex items-center gap-2 text-xs text-base-content/70 px-3 py-2 bg-base-200/70 rounded-xl border border-base-300 animate-pulse">

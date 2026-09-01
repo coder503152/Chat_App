@@ -16,12 +16,12 @@ const HomePage = () => {
       <div className="w-full max-w-6xl h-[calc(100vh-4rem)] sm:h-[calc(100vh-5rem)] z-10">
         <div className="bg-base-100/90 backdrop-blur-xl sm:rounded-2xl border-0 sm:border border-base-300 shadow-2xl w-full h-full overflow-hidden flex">
           {/* Sidebar - visible full width on mobile when no user selected, or side-by-side on desktop */}
-          <div className={`w-full lg:w-80 h-full shrink-0 ${selectedUser ? "hidden lg:flex" : "flex"}`}>
+          <div className={`w-full lg:w-80 h-full shrink-0 min-w-0 overflow-hidden ${selectedUser ? "hidden lg:flex" : "flex"}`}>
             <Sidebar />
           </div>
 
           {/* Chat Container or Welcome Screen - visible full width on mobile when user selected */}
-          <div className={`w-full lg:flex-1 h-full ${!selectedUser ? "hidden lg:flex" : "flex"}`}>
+          <div className={`w-full lg:flex-1 h-full min-w-0 flex flex-col overflow-hidden ${!selectedUser ? "hidden lg:flex" : "flex"}`}>
             {!selectedUser ? <NoChatSelected /> : <ChatContainer />}
           </div>
         </div>

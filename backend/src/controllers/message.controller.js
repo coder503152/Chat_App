@@ -201,3 +201,34 @@ export const deleteMessage = async (req, res) => {
   }
 };
 
+export const reactToMessage = async (req, res) => {
+  try {
+    const { id: messageId } = req.params;
+    const { reaction } = req.body;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: "Message not found" });
+    }
+
+    message.reaction = message.reaction === reaction ? null : reaction;
+    await message.save();
+
+    const otherUserId =
+      message.senderId.toString() === req.user._id.toString()
+        ? message.receiverId
+        : message.senderId;
+
+    const receiverSocketId = getReceiverSocketId(otherUserId);
+    if (receiverSocketId) {
+      io.to(receiverSocketId).emit("messageReacted", message);
+    }
+
+    res.status(200).json(message);
+  } catch (error) {
+    console.error("Error in reactToMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+
