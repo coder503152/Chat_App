@@ -12,6 +12,8 @@ const SettingsPage = () => {
 
   return (
     <div className="min-h-screen container mx-auto px-4 pt-20 pb-12 max-w-5xl">
+
+
       <div className="space-y-6">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-bold tracking-tight flex items-center gap-2">

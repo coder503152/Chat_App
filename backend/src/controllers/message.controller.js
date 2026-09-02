@@ -14,68 +14,29 @@ import { getReceiverSocketId, io } from "../lib/socket.js";
 
 export const getUsersForSidebar = async (req, res) => {
   try {
-    const loggedInUserId = req.user._id;
-    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password");
+    const loggedInUserId = req.user._id; // Current Logged in User
+    const filteredUsers = await User.find({ _id: { $ne: loggedInUserId } }).select("-password"); // we find all the users except for the current logged in user , except for their passwords cuz we dont need that....
+    // it filters the users except the currently logged in user ......
 
-    const usersWithStats = await Promise.all(
-      filteredUsers.map(async (user) => {
-        const unreadCount = await Message.countDocuments({
-          senderId: user._id,
-          receiverId: loggedInUserId,
-          isRead: false,
-        });
 
-        const lastMessage = await Message.findOne({
-          $or: [
-            { senderId: loggedInUserId, receiverId: user._id },
-            { senderId: user._id, receiverId: loggedInUserId },
-          ],
-        })
-          .sort({ createdAt: -1 })
-          .select("text image video createdAt");
-
-        return {
-          ...user.toObject(),
-          unreadCount,
-          lastMessageTime: lastMessage ? lastMessage.createdAt : null,
-          lastMessageText: lastMessage
-            ? lastMessage.text || (lastMessage.image ? "📷 Photo" : (lastMessage.video ? "🎥 Video" : ""))
-            : "",
-        };
-      })
-    );
-
-    res.status(200).json(usersWithStats);
+    res.status(200).json(filteredUsers);  // returns the filtered users in the response .....
   } catch (error) {
     console.error("Error in getUsersForSidebar: ", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
 
-
 export const getMessages = async (req, res) => {
   try {
-    const { id: userToChatId } = req.params;
-    const myId = req.user._id;
-
-    // Mark all unread/unseen messages from this contact to me as read in MongoDB
-    await Message.updateMany(
-      { senderId: userToChatId, receiverId: myId, isRead: { $ne: true } },
-      { isRead: true }
-    );
-
-    // Notify the sender in real-time that their messages have been read
-    const senderSocketId = getReceiverSocketId(userToChatId);
-    if (senderSocketId) {
-      io.to(senderSocketId).emit("messagesRead", { readBy: myId });
-    }
+    const { id: userToChatId } = req.params; // We grab from the request the id of the person for which we wanna bring the chats .... 
+    const myId = req.user._id; 
 
     const messages = await Message.find({
       $or: [
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    });
+    }); // Find the messages where the sender is me and reciver is the other person i am fetching fro or vice versa.
 
     res.status(200).json(messages);
   } catch (error) {
@@ -84,27 +45,17 @@ export const getMessages = async (req, res) => {
   }
 };
 
-
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image, video } = req.body;
-    const { id: receiverId } = req.params;
+    const { text, image } = req.body; // The content of the message I'm bout to send....
+    const { id: receiverId } = req.params; // The Id of the person i am sending the message to ...
     const senderId = req.user._id;
 
     let imageUrl;
     if (image) {
+      // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
-    }
-
-    let videoUrl;
-    if (video) {
-      const uploadResponse = await cloudinary.uploader.upload(video, {
-        resource_type: "video",
-        folder: "chat_videos",
-        chunk_size: 6000000,
-      });
-      videoUrl = uploadResponse.secure_url;
     }
 
     const newMessage = new Message({
@@ -112,27 +63,21 @@ export const sendMessage = async (req, res) => {
       receiverId,
       text,
       image: imageUrl,
-      video: videoUrl,
-      isRead: false,
     });
 
     await newMessage.save();
 
-    const receiverSocketId = getReceiverSocketId(receiverId);
+    const receiverSocketId = getReceiverSocketId(receiverId); // We need the receiverSocketId of the other person to send messages to him in the realtime if he is connected , if he is not then the message anyways gets stored in the MongoDB and when the user will log in again , then he will see the messages anyway saved in the MongoDB.....
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
   } catch (error) {
-    console.error("Error in sendMessage controller:", error);
-    const cloudError = error.message || error.error?.message || "Failed to upload media to Cloudinary";
-    res.status(400).json({ message: cloudError });
+    console.log("Error in sendMessage controller: ", error.message);
+    res.status(500).json({ error: "Internal server error" });
   }
 };
-
-
-
 
 export const updateMessage = async (req, res) => {
   try {

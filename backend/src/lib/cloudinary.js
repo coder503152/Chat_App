@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from "cloudinary";
 
-import { config } from "dotenv";
+import { config } from "dotenv"; // This is used taaki hmlog .env se variables use kr ske....
 
 config();
 

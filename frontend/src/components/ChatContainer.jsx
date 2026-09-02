@@ -192,6 +192,8 @@ const ChatContainer = () => {
                   className={`chat-bubble flex flex-col relative shadow-sm max-w-[85%] sm:max-w-[70%] min-w-0 [overflow-wrap:anywhere] break-words ${
                     isMediaOnly ? "p-1" : "p-3 pb-1.5 pr-4"
                   } ${
+                    message.reaction ? "mb-2.5" : ""
+                  } ${
                     isMyMessage
                       ? "bg-primary text-primary-content rounded-2xl rounded-tr-none"
                       : "bg-base-200 text-base-content border border-base-300 rounded-2xl rounded-tl-none"
@@ -325,7 +327,7 @@ const ChatContainer = () => {
 
                   {/* Reaction badge */}
                   {message.reaction && (
-                    <div className="absolute -bottom-2.5 right-2 bg-base-300 border border-base-content/20 text-xs px-1.5 py-0.5 rounded-full shadow-md animate-scaleUp select-none">
+                    <div className="absolute -bottom-3.5 right-2 bg-base-300 text-base-content border border-base-content/20 text-xs px-1.5 py-0.5 rounded-full shadow-lg z-20 animate-scaleUp select-none flex items-center justify-center">
                       {message.reaction}
                     </div>
                   )}
