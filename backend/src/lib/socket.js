@@ -10,15 +10,35 @@ const app = express();
 const server = http.createServer(app);
 
 const clientUrl = process.env.CLIENT_URL?.replace(/\/+$/, "");
-const allowedOrigins = [
-  "http://localhost:5173",
-  ...(clientUrl ? [clientUrl] : []),
-];
+
+const isOriginAllowed = (origin) => {
+  if (!origin) return true;
+  const clean = origin.replace(/\/+$/, "");
+  if (
+    clean === "http://localhost:5173" ||
+    clean === "https://chat-app-tuak.vercel.app" ||
+    (clientUrl && clean === clientUrl)
+  ) {
+    return true;
+  }
+  // Allow all Vercel preview deployments for this project
+  if (/^https:\/\/chat-app-tuak(-[a-z0-9-]+)?\.vercel\.app$/i.test(clean)) {
+    return true;
+  }
+  return false;
+};
 
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
+    methods: ["GET", "POST"],
   },
 });
 
