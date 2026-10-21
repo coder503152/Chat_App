@@ -5,9 +5,8 @@ import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore.js";
 
 // Determine Socket.IO server URL:
-// 1. Prefer VITE_SOCKET_URL environment variable if set (e.g. in Vercel production: https://chat-app-xq7u.onrender.com)
-// 2. Otherwise derive from VITE_API_URL by stripping trailing /api
-// 3. Fallback to localhost:5001 in development, or "/" in fallback
+// 1. In development mode: default to local backend "http://localhost:5001" (unless overridden)
+// 2. In production: prefer VITE_SOCKET_URL, or derive from VITE_API_URL, or fallback to Render backend
 const getSocketURL = () => {
   const rawSocketUrl = import.meta.env.VITE_SOCKET_URL;
   if (rawSocketUrl) {
@@ -17,7 +16,9 @@ const getSocketURL = () => {
   if (rawApiUrl) {
     return rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
   }
-  return import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+  return import.meta.env.MODE === "development"
+    ? "http://localhost:5001"
+    : "https://chat-app-xq7u.onrender.com";
 };
 
 const BASE_URL = getSocketURL();

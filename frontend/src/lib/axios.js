@@ -1,15 +1,17 @@
 import axios from "axios";
 
 // Determine base API URL:
-// 1. Prefer VITE_API_URL environment variable if set (e.g. in Vercel production: https://chat-app-xq7u.onrender.com/api)
-// 2. Otherwise default to localhost:5001/api in development, or fallback to /api
+// 1. In development mode: default to local backend "http://localhost:5001/api" (unless VITE_API_URL overrides it)
+// 2. In production: use VITE_API_URL if configured, otherwise fallback to the deployed Render backend "https://chat-app-xq7u.onrender.com/api"
 const getBaseURL = () => {
-  const rawUrl = import.meta.env.VITE_API_URL;
-  if (rawUrl) {
-    const cleanUrl = rawUrl.replace(/\/+$/, "");
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    const cleanUrl = envUrl.replace(/\/+$/, "");
     return cleanUrl.endsWith("/api") ? cleanUrl : `${cleanUrl}/api`;
   }
-  return import.meta.env.MODE === "development" ? "http://localhost:5001/api" : "/api";
+  return import.meta.env.MODE === "development"
+    ? "http://localhost:5001/api"
+    : "https://chat-app-xq7u.onrender.com/api";
 };
 
 export const axiosInstance = axios.create({
