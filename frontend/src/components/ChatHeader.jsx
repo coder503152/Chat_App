@@ -3,23 +3,16 @@ import { useAuthStore } from "../store/useAuthStore";
 import { useChatStore } from "../store/useChatStore";
 import { useAIStore } from "../store/useAIStore";
 
-
 const ChatHeader = () => {
   const { selectedUser, setSelectedUser, typingUsers } = useChatStore();
   const { onlineUsers } = useAuthStore();
-  const { summarizeConversation, summarizeRecentMessages, openAskModal, isSummarizing } = useAIStore();
+  const { summarizeConversation, openAskModal, isSummarizing } = useAIStore();
 
   const isOnline = onlineUsers.includes(selectedUser?._id);
 
   const handleSummarize = () => {
     if (selectedUser?._id) {
       summarizeConversation(selectedUser._id);
-    }
-  };
-
-  const handleSummarizeRecent = () => {
-    if (selectedUser?._id) {
-      summarizeRecentMessages(selectedUser._id, 10);
     }
   };
 
@@ -51,7 +44,6 @@ const ChatHeader = () => {
               )}
             </div>
           </div>
-
 
           {/* User info */}
           <div>
@@ -93,8 +85,6 @@ const ChatHeader = () => {
             <span className="hidden md:inline">Ask AI</span>
           </button>
 
-
-
           {/* Search Message button */}
           <button
             type="button"
@@ -118,4 +108,3 @@ const ChatHeader = () => {
   );
 };
 export default ChatHeader;
-

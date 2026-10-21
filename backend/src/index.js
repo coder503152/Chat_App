@@ -1,4 +1,3 @@
-
 import express from "express";
 import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
@@ -12,14 +11,23 @@ import { app, server } from "./lib/socket.js";
 
 dotenv.config();
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
+
+// Trust reverse proxy (e.g. Render, Heroku) for secure HTTPS cookies
+app.set("trust proxy", 1);
 
 app.use(express.json({ limit: "50mb" }));
 app.use(cookieParser());
 
+const clientUrl = process.env.CLIENT_URL?.replace(/\/+$/, "");
+const allowedOrigins = [
+  "http://localhost:5173",
+  ...(clientUrl ? [clientUrl] : []),
+];
+
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: allowedOrigins,
     credentials: true,
   })
 );
@@ -37,21 +45,3 @@ server.listen(PORT, async () => {
     console.error("MongoDB connection failed:", error);
   }
 });
-
-
-// yaha pe server.listen islie krte hain because is same HTTP server pr hamare dono express and socket.io connected hain :-
-
-//  HTTP Server
-//                   server.listen()
-//                        │
-//               ┌────────┴────────┐
-//               │                 │
-//            Express           Socket.IO
-//               │                 │
-//         REST API calls      Persistent
-//         request/response     connection
-//               │                 │
-//               ▼                 ▼
-//        Login / messages    Instant events
-//                               ↕
-//                          Client ↔ Server

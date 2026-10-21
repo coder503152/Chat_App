@@ -238,7 +238,7 @@ const MessageInput = () => {
                 className="btn btn-xs sm:btn-sm btn-ghost hover:btn-primary justify-start text-left font-normal text-xs normal-case border border-base-300 bg-base-100 hover:bg-primary/10 rounded-xl p-2.5 h-auto line-clamp-2 transition-all shadow-2xs"
                 title="Click to insert into message"
               >
-                "{suggestion}"
+                &quot;{suggestion}&quot;
               </button>
             ))}
           </div>

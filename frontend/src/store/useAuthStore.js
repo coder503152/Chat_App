@@ -4,7 +4,23 @@ import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import { useChatStore } from "./useChatStore.js";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+// Determine Socket.IO server URL:
+// 1. Prefer VITE_SOCKET_URL environment variable if set (e.g. in Vercel production: https://chat-app-xq7u.onrender.com)
+// 2. Otherwise derive from VITE_API_URL by stripping trailing /api
+// 3. Fallback to localhost:5001 in development, or "/" in fallback
+const getSocketURL = () => {
+  const rawSocketUrl = import.meta.env.VITE_SOCKET_URL;
+  if (rawSocketUrl) {
+    return rawSocketUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+  }
+  const rawApiUrl = import.meta.env.VITE_API_URL;
+  if (rawApiUrl) {
+    return rawApiUrl.replace(/\/+$/, "").replace(/\/api$/, "");
+  }
+  return import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+};
+
+const BASE_URL = getSocketURL();
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -18,12 +34,17 @@ export const useAuthStore = create((set, get) => ({
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
-
-      set({ authUser: res.data });
-      get().connectSocket();
+      if (res.data && res.data._id) {
+        set({ authUser: res.data });
+        get().connectSocket();
+      } else {
+        set({ authUser: null });
+        get().disconnectSocket();
+      }
     } catch (error) {
       console.log("Error in checkAuth:", error);
       set({ authUser: null });
+      get().disconnectSocket();
     } finally {
       set({ isCheckingAuth: false });
     }
@@ -33,11 +54,13 @@ export const useAuthStore = create((set, get) => ({
     set({ isSigningUp: true });
     try {
       const res = await axiosInstance.post("/auth/signup", data);
-      set({ authUser: res.data });
-      toast.success("Account created successfully");
-      get().connectSocket();
+      if (res.data && res.data._id) {
+        set({ authUser: res.data });
+        toast.success("Account created successfully");
+        get().connectSocket();
+      }
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to create account");
     } finally {
       set({ isSigningUp: false });
     }
@@ -47,12 +70,13 @@ export const useAuthStore = create((set, get) => ({
     set({ isLoggingIn: true });
     try {
       const res = await axiosInstance.post("/auth/login", data);
-      set({ authUser: res.data });
-      toast.success("Logged in successfully");
-
-      get().connectSocket();
+      if (res.data && res.data._id) {
+        set({ authUser: res.data });
+        toast.success("Logged in successfully");
+        get().connectSocket();
+      }
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to log in");
     } finally {
       set({ isLoggingIn: false });
     }
@@ -61,11 +85,12 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await axiosInstance.post("/auth/logout");
-      set({ authUser: null });
       toast.success("Logged out successfully");
-      get().disconnectSocket();
     } catch (error) {
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to log out");
+    } finally {
+      set({ authUser: null });
+      get().disconnectSocket();
     }
   },
 
@@ -77,15 +102,21 @@ export const useAuthStore = create((set, get) => ({
       toast.success("Profile updated successfully");
     } catch (error) {
       console.log("error in update profile:", error);
-      toast.error(error.response.data.message);
+      toast.error(error.response?.data?.message || "Failed to update profile");
     } finally {
       set({ isUpdatingProfile: false });
     }
   },
 
   connectSocket: () => {
-    const { authUser } = get();
-    if (!authUser || get().socket?.connected) return;
+    const { authUser, socket: existingSocket } = get();
+    // Guard against undefined or unauthenticated user ID:
+    if (!authUser || !authUser._id) return;
+    if (existingSocket?.connected) return;
+
+    if (existingSocket) {
+      existingSocket.disconnect();
+    }
 
     const socket = io(BASE_URL, {
       query: {
@@ -102,9 +133,11 @@ export const useAuthStore = create((set, get) => ({
 
     useChatStore.getState().subscribeToMessages();
   },
+
   disconnectSocket: () => {
-    if (get().socket?.connected) get().socket.disconnect();
+    useChatStore.getState().unsubscribeFromMessages();
+    const { socket } = get();
+    if (socket?.connected) socket.disconnect();
     set({ socket: null, onlineUsers: [] });
   },
 }));
-

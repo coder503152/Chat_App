@@ -44,15 +44,19 @@ export const useChatStore = create((set, get) => ({
     set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/users");
-      const unreadCounts = {};
-      const lastMessageTimes = {};
-      const lastMessageTexts = {};
-      res.data.forEach((user) => {
-        if (user.unreadCount) unreadCounts[user._id] = user.unreadCount;
-        if (user.lastMessageTime) lastMessageTimes[user._id] = user.lastMessageTime;
-        if (user.lastMessageText) lastMessageTexts[user._id] = user.lastMessageText;
-      });
-      set({ users: res.data, unreadCounts, lastMessageTimes, lastMessageTexts });
+      if (Array.isArray(res.data)) {
+        const unreadCounts = {};
+        const lastMessageTimes = {};
+        const lastMessageTexts = {};
+        res.data.forEach((user) => {
+          if (user.unreadCount) unreadCounts[user._id] = user.unreadCount;
+          if (user.lastMessageTime) lastMessageTimes[user._id] = user.lastMessageTime;
+          if (user.lastMessageText) lastMessageTexts[user._id] = user.lastMessageText;
+        });
+        set({ users: res.data, unreadCounts, lastMessageTimes, lastMessageTexts });
+      } else {
+        set({ users: [] });
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load contacts");
     } finally {
@@ -68,7 +72,7 @@ export const useChatStore = create((set, get) => ({
     }));
     try {
       const res = await axiosInstance.get(`/messages/${userId}`);
-      set({ messages: res.data });
+      set({ messages: Array.isArray(res.data) ? res.data : [] });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load messages");
     } finally {
@@ -134,8 +138,6 @@ export const useChatStore = create((set, get) => ({
       toast.error(errMsg);
     }
   },
-
-
 
   updateMessage: async (messageId, text) => {
     try {
@@ -296,5 +298,3 @@ export const useChatStore = create((set, get) => ({
     }));
   },
 }));
-
-

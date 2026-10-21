@@ -17,24 +17,19 @@ import { Toaster } from "react-hot-toast";
 import { useChatStore } from "./store/useChatStore";
 
 const App = () => {
-  const { authUser, checkAuth, isCheckingAuth, onlineUsers, socket } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, socket } = useAuthStore();
   const { subscribeToMessages } = useChatStore();
   const { theme } = useThemeStore();
-
-  console.log({ onlineUsers });
 
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
 
   useEffect(() => {
-    if (authUser && socket) {
+    if (authUser && authUser._id && socket) {
       subscribeToMessages();
     }
   }, [authUser, socket, subscribeToMessages]);
-
-
-  console.log({ authUser });
 
   if (isCheckingAuth && !authUser)
     return (

@@ -162,7 +162,7 @@ const AISummaryModal = () => {
                     <span className="text-[11px] font-semibold uppercase text-secondary flex items-center gap-1">
                       <MessageSquare className="size-3" /> Recommended Reply
                     </span>
-                    <p className="text-xs italic text-base-content/80 truncate">"{summary.suggestedReply}"</p>
+                    <p className="text-xs italic text-base-content/80 truncate">&quot;{summary.suggestedReply}&quot;</p>
                   </div>
                 </div>
               )}

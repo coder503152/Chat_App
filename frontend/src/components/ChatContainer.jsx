@@ -1,9 +1,7 @@
 import { useChatStore } from "../store/useChatStore";
-import { useAIStore } from "../store/useAIStore";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Trash2, Check, X, Sparkles, Play, Download, Reply, Smile, MoreVertical } from "lucide-react";
-
+import { Pencil, Trash2, Check, X, Play, Download, Reply, Smile, MoreVertical } from "lucide-react";
 
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
@@ -20,16 +18,12 @@ const ChatContainer = () => {
     isMessagesLoading,
     selectedUser,
     subscribeToMessages,
-    unsubscribeFromMessages,
     updateMessage,
     deleteMessage,
-    newIncomingCount,
-    resetNewIncomingCount,
     typingUsers,
     setReplyingTo,
     addReaction,
   } = useChatStore();
-  const { summarizeConversation, isSummarizing } = useAIStore();
   const { authUser, onlineUsers } = useAuthStore();
   const messageEndRef = useRef(null);
 
@@ -39,16 +33,12 @@ const ChatContainer = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [deletingMessageId, setDeletingMessageId] = useState(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState(null);
-  const [isBannerDismissed, setIsBannerDismissed] = useState(false);
   const [previewMedia, setPreviewMedia] = useState(null);
-
 
   useEffect(() => {
     if (selectedUser?._id) {
       getMessages(selectedUser._id);
     }
-    setIsBannerDismissed(false);
-
     subscribeToMessages();
   }, [selectedUser?._id, getMessages, subscribeToMessages]);
 
@@ -57,7 +47,6 @@ const ChatContainer = () => {
       messageEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
-
 
   const handleStartEdit = (message) => {
     setEditingMessageId(message._id);
@@ -92,15 +81,6 @@ const ChatContainer = () => {
     setDeleteConfirmId(null);
   };
 
-  const handleSummarizeNewBatch = () => {
-    if (selectedUser?._id) {
-      summarizeConversation(selectedUser._id);
-    }
-    resetNewIncomingCount();
-    setIsBannerDismissed(true);
-  };
-
-
   const handleKeyDown = (e, messageId) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -126,10 +106,7 @@ const ChatContainer = () => {
     <div className="flex-1 flex flex-col min-w-0 overflow-hidden bg-base-100/40 relative">
       <ChatHeader />
 
-
-
       <div className="flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-4">
-
         {(messages || []).map((message, index) => {
           const isMyMessage = (message.senderId?._id ? String(message.senderId._id) : String(message.senderId)) === String(authUser?._id);
           const isEditing = editingMessageId === message._id;
